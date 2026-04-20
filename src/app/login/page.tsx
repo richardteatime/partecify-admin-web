@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { loginWithEmailPassword, requireAdminUser } from "@/services/auth-service";
@@ -12,7 +13,7 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setSubmitting(true);
     setError("");
@@ -33,7 +34,16 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-neutral-100 px-4">
       <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-sm">
-        <div className="mb-8">
+        <div className="mb-8 flex flex-col items-center text-center">
+          <Image
+            src="/partecify-logo.png"
+            alt="Logo Partecify"
+            width={140}
+            height={140}
+            className="mb-4 h-auto w-auto object-contain"
+            priority
+          />
+
           <h1 className="text-2xl font-bold">Accedi</h1>
           <p className="mt-2 text-sm text-neutral-500">
             Inserisci le tue credenziali per accedere al pannello amministrativo.
