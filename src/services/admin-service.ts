@@ -187,19 +187,28 @@ export const adminService = {
   },
 
   async loadDeletableTimedNews(): Promise<TimedNewsItem[]> {
-    const snap = await getDoc(mainDocRef);
-    const data = snap.data();
+  const snap = await getDoc(mainDocRef);
+  const data = snap.data();
 
-    if (!Array.isArray(data?.timedNews)) return [];
+  if (!Array.isArray(data?.timedNews)) return [];
 
-    return data!.timedNews.map((item: Record<string, unknown>) => ({
-      ...item,
+  return data.timedNews.map((raw): TimedNewsItem => {
+    const item = raw as Record<string, unknown>;
+
+    return {
+      id: String(item.id ?? ""),
+      image: String(item.image ?? ""),
+      title: String(item.title ?? ""),
+      description: String(item.description ?? ""),
+      location: String(item.location ?? ""),
+      eventId: String(item.eventId ?? ""),
       startAt:
         item.startAt instanceof Timestamp ? item.startAt.toDate() : new Date(),
       endAt:
         item.endAt instanceof Timestamp ? item.endAt.toDate() : new Date(),
-    }));
-  },
+    };
+  });
+},
 
   async deleteItemAt(params: {
     deleteSelectedType: "news" | "event" | "timedNews";
