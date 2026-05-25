@@ -10,6 +10,8 @@ import {
   addDoc,
   serverTimestamp,
   Timestamp,
+  query,
+  where,
 } from "firebase/firestore";
 import {
   getDownloadURL,
@@ -19,12 +21,14 @@ import {
 import { db, storage } from "@/lib/firebase";
 import { formatDate, formatTime } from "@/lib/format";
 import {
+  AdminStats,
   EventItem,
   NewsItem,
   RegistrationItem,
   StorageImageEntry,
   TimedNewsItem,
 } from "@/types/admin";
+import { mapUser, UserModel } from "@/types/user";
 
 const mainDocRef = doc(db, "global_data", "main");
 
@@ -361,5 +365,59 @@ export const adminService = {
     }
 
     return new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8;" });
+  },
+
+  async fetchUsers(sedeFilter?: string): Promise<UserModel[]> {
+    let q = query(collection(db, "users"));
+    if (sedeFilter) {
+      q = query(q, where("sede", "==", sedeFilter));
+    }
+    const snap = await getDocs(q);
+    return snap.docs.map((d) =>
+      mapUser({ ...d.data(), uid: d.id } as Record<string, unknown>)
+    );
+  },
+
+  async updateUser(uid: string, data: Partial<UserModel>): Promise<void> {
+    const ref = doc(db, "users", uid);
+    const payload: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (value !== undefined) payload[key] = value;
+    }
+    await updateDoc(ref, payload);
+  },
+
+  async fetchStats(): Promise<AdminStats> {
+    const [usersSnap, mainSnap, eventRegSnap, timedRegSnap] = await Promise.all([
+      getDocs(collection(db, "users")),
+      getDoc(mainDocRef),
+      getDocs(collection(db, "global_data", "main", "eventRegistration")),
+      getDocs(collection(db, "global_data", "main", "timedNewsRegistration")),
+    ]);
+
+    const users = usersSnap.docs.map((d) =>
+      mapUser(d.data() as Record<string, unknown>)
+    );
+
+    const usersBySede: Record<string, number> = {};
+    let totalGamePoints = 0;
+
+    for (const u of users) {
+      usersBySede[u.sede] = (usersBySede[u.sede] || 0) + 1;
+      totalGamePoints += u.gamePoints;
+    }
+
+    const mainData = mainSnap.data();
+
+    return {
+      totalUsers: users.length,
+      usersBySede,
+      totalGamePoints,
+      avgGamePoints: users.length ? Math.round(totalGamePoints / users.length) : 0,
+      totalNews: Array.isArray(mainData?.news) ? mainData.news.length : 0,
+      totalEvents: Array.isArray(mainData?.events) ? mainData.events.length : 0,
+      totalTimedNews: Array.isArray(mainData?.timedNews) ? mainData.timedNews.length : 0,
+      totalRegistrations: eventRegSnap.size + timedRegSnap.size,
+    };
   },
 };

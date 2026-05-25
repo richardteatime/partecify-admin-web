@@ -1,4 +1,5 @@
 export type UserModel = {
+  uid: string;
   fullName: string;
   phone: string;
   address: string;
@@ -18,6 +19,7 @@ export function mapUser(data: Record<string, unknown>): UserModel {
   };
 
   return {
+    uid: String(data.uid ?? ""),
     fullName: String(data.fullName ?? ""),
     phone: String(data.phone ?? ""),
     address: String(data.address ?? ""),

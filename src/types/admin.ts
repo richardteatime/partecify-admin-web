@@ -46,3 +46,14 @@ export type StorageImageEntry = {
   name: string;
   url: string;
 };
+
+export type AdminStats = {
+  totalUsers: number;
+  usersBySede: Record<string, number>;
+  totalGamePoints: number;
+  avgGamePoints: number;
+  totalNews: number;
+  totalEvents: number;
+  totalTimedNews: number;
+  totalRegistrations: number;
+};

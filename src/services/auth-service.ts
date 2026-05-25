@@ -18,7 +18,7 @@ export async function logout(): Promise<void> {
 export async function getUserProfile(uid: string): Promise<UserModel | null> {
   const snap = await getDoc(doc(db, "users", uid));
   if (!snap.exists()) return null;
-  return mapUser(snap.data() as Record<string, unknown>);
+  return mapUser({ ...snap.data(), uid } as Record<string, unknown>);
 }
 
 export async function requireAdminUser(uid: string): Promise<UserModel> {

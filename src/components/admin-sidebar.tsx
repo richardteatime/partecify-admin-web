@@ -6,6 +6,7 @@ import { logout } from "@/services/auth-service";
 
 const links = [
   { href: "/admin", label: "Panoramica" },
+  { href: "/admin/users", label: "Utenti" },
   { href: "/admin/content", label: "Contenuti" },
   { href: "/admin/qr", label: "Codici QR" },
   { href: "/admin/registrations", label: "Registrazioni" },
