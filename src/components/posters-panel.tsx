@@ -20,6 +20,9 @@ export default function PostersPanel() {
   const [aspectRatio, setAspectRatio] = useState("16:9");
   const [sede, setSede] = useState("");
   const [locations, setLocations] = useState<string[]>([]);
+  const [assets, setAssets] = useState<
+    Array<{ file: File; category: string; description: string }>
+  >([]);
 
   // Generation state
   const [generating, setGenerating] = useState(false);
@@ -50,6 +53,43 @@ export default function PostersPanel() {
     }
   }
 
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    setAssets((prev) => [
+      ...prev,
+      ...files.map((f) => ({ file: f, category: "other", description: "" })),
+    ]);
+    e.target.value = "";
+  }
+
+  function handleRemoveAsset(index: number) {
+    setAssets((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function updateAsset(index: number, field: "category" | "description", value: string) {
+    setAssets((prev) =>
+      prev.map((a, i) => (i === index ? { ...a, [field]: value } : a))
+    );
+  }
+
+  async function uploadAssets(): Promise<
+    Array<{ imageUrl: string; category: string; description: string }>
+  > {
+    const uploaded: Array<{ imageUrl: string; category: string; description: string }> = [];
+    for (const asset of assets) {
+      const path = `posters/assets/${Date.now()}_${asset.file.name}`;
+      const storageRef = ref(storage, path);
+      await uploadBytes(storageRef, asset.file);
+      const url = await getDownloadURL(storageRef);
+      uploaded.push({
+        imageUrl: url,
+        category: asset.category,
+        description: asset.description,
+      });
+    }
+    return uploaded;
+  }
+
   async function handleGenerate(e: React.FormEvent) {
     e.preventDefault();
     if (!titolo || !sede) {
@@ -62,6 +102,16 @@ export default function PostersPanel() {
     setPreviewBlob(null);
 
     try {
+      let uploadedAssets: Array<{
+        imageUrl: string;
+        category: string;
+        description: string;
+      }> = [];
+      if (assets.length > 0) {
+        setMessage("Caricamento immagini di riferimento...");
+        uploadedAssets = await uploadAssets();
+      }
+
       const resp = await fetch("/api/posters/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -73,6 +123,7 @@ export default function PostersPanel() {
           tema: tema || undefined,
           aspectRatio,
           sede,
+          assets: uploadedAssets.length ? uploadedAssets : undefined,
         }),
       });
 
@@ -128,6 +179,7 @@ export default function PostersPanel() {
       setDataEvento("");
       setOraEvento("");
       setTema("");
+      setAssets([]);
       await loadPosters();
       setActiveTab("gallery");
     } catch (err: unknown) {
@@ -275,6 +327,58 @@ export default function PostersPanel() {
                   ))}
                 </select>
               </div>
+            </div>
+
+            <div className="mt-6">
+              <label className="mb-2 block text-sm font-medium">Immagini di riferimento</label>
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={handleFileSelect}
+                className="block w-full text-sm text-neutral-600 file:mr-4 file:rounded-xl file:border-0 file:bg-red-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-red-700 hover:file:bg-red-100"
+              />
+              <p className="mt-1 text-xs text-neutral-500">
+                Carica foto di ospiti, oggetti, loghi collaborazione, ecc.
+              </p>
+
+              {assets.length > 0 && (
+                <div className="mt-4 space-y-3">
+                  {assets.map((asset, idx) => (
+                    <div
+                      key={idx}
+                      className="flex flex-col gap-2 rounded-xl border border-neutral-200 bg-neutral-50 p-3 sm:flex-row sm:items-center"
+                    >
+                      <span className="flex-1 truncate text-sm font-medium text-neutral-700">
+                        {asset.file.name}
+                      </span>
+                      <select
+                        className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                        value={asset.category}
+                        onChange={(e) => updateAsset(idx, "category", e.target.value)}
+                      >
+                        <option value="guest">Ospite speciale</option>
+                        <option value="object">Oggetto / Elemento</option>
+                        <option value="logo_collab">Logo collaborazione</option>
+                        <option value="other">Altro</option>
+                      </select>
+                      <input
+                        className="flex-1 rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+                        placeholder="Descrizione (opzionale)"
+                        value={asset.description}
+                        onChange={(e) => updateAsset(idx, "description", e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveAsset(idx)}
+                        className="rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-100"
+                      >
+                        Rimuovi
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="mt-6">

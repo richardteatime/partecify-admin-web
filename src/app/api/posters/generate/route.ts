@@ -82,6 +82,29 @@ function _typographyDirection(params: {
   );
 }
 
+const ASSET_BLOCK_TEMPLATES: Record<string, string> = {
+  guest: `SPECIAL GUEST (reference image attached):
+Place the person from the reference image as the FEATURED SUBJECT of the poster, in the central-upper area but NOT overlapping the title. Preserve their facial features, hair, and overall look faithfully — this person must be clearly recognizable as the one in the input image. Integrate them naturally into the scene's lighting and palette, dressed in attire consistent with the event theme.
+{description_line}`,
+  object: `OBJECT / ELEMENT (reference image attached):
+Include this object or element from the reference image naturally into the scene. Position it so it complements the composition without covering the title or the bottom logo area. Match the scene's lighting and perspective.
+{description_line}`,
+  logo_collab: `BRAND LOGO INTEGRATION (reference image attached — CRITICAL):
+You MUST incorporate the logo from the reference image into the final poster as a NATURAL ELEMENT of the scene. Do NOT simply paste it as a flat sticker. Instead, integrate it creatively and immersively:
+- As a glowing neon sign on a building facade
+- As an engraved emblem on a banner or flag
+- As a projected light on a wall or floor
+- As a holographic display in the air
+- As a reflective decal on a surface (table, car, window)
+- As a luminous badge integrated into architecture
+
+The logo MUST be clearly recognizable but should feel like it BELONGS in the environment. Match the scene's lighting, perspective, glow, and atmosphere. If the reference image has a solid background around the logo, IGNORE that background — extract only the logo mark itself. The logo should NOT have a box, square border, or plain background around it in the final image. Make it feel like a real physical or light-based object within the scene.
+{description_line}`,
+  other: `VISUAL REFERENCE (image attached):
+Use this reference image as visual guidance for the poster. Integrate its content into the scene in a way that feels natural and consistent with the event theme and overall composition.
+{description_line}`,
+};
+
 const PROMPT_TEMPLATE = `Professional event poster background, aspect ratio {aspect_ratio}, ultra detailed cinematic illustration.
 
 EVENT THEME: {tema}
@@ -99,6 +122,7 @@ TITLE TEXT (must appear stunning at the TOP-CENTER of the poster, large impact, 
 "{titolo}"
 {sottotitolo_block}
 {datetime_block}
+{guest_block}
 
 VISUAL DIRECTION:
 - Setting and atmosphere matching the theme described above
@@ -112,6 +136,12 @@ The BOTTOM CENTER of the poster (roughly the bottom 20%) MUST be left completely
 Keep it as plain background (e.g. clean floor, ground, sky, grass, or simple gradient) so a real brand logo can be composited there afterwards. Do NOT draw "LAS VEGAS", "PLAYPARK", or any fake brand mark.
 `;
 
+export type PosterAsset = {
+  imageUrl: string;
+  description?: string;
+  category: string;
+};
+
 function buildPrompt(params: {
   titolo: string;
   sottotitolo?: string;
@@ -120,6 +150,7 @@ function buildPrompt(params: {
   tema?: string;
   aspectRatio: string;
   id: string;
+  assets?: PosterAsset[];
 }): string {
   const sottotitoloBlock = params.sottotitolo
     ? `\nSECONDARY TEXT (smaller, below the title, coordinated with the title but using a visibly distinct color/font treatment):\n"${params.sottotitolo}"`
@@ -130,6 +161,23 @@ function buildPrompt(params: {
     ? `\nDATE/TIME TEXT (clearly readable, integrated into the design):\n"${datetimeParts.join(" — ")}"`
     : "";
 
+  const assetBlocks: string[] = [];
+  for (const asset of params.assets ?? []) {
+    const tmpl = ASSET_BLOCK_TEMPLATES[asset.category] ?? ASSET_BLOCK_TEMPLATES.other;
+    const descriptionLine = asset.description
+      ? `Additional context: "${asset.description}".`
+      : "";
+    let prominentText = "";
+    if (asset.description) {
+      prominentText =
+        `\n\nPROMINENT TEXT — MUST BE VISUALIZED LARGE AND INTEGRATED IN THE SCENE:` +
+        `\n"${asset.description}"` +
+        `\nThis text must be rendered as a stunning, integrated typographic element within the scene — glowing neon, embossed gold, projected light, or thematic 3D lettering — positioned prominently where it captures attention alongside the subject. It must feel like a natural part of the environment, not a flat overlay.`;
+    }
+    assetBlocks.push(tmpl.replace("{description_line}", descriptionLine) + prominentText);
+  }
+  const assetsBlock = assetBlocks.join("\n\n") || "";
+
   const ratioText = params.aspectRatio === "auto" ? "your choice of orientation" : params.aspectRatio;
 
   return PROMPT_TEMPLATE.replace("{aspect_ratio}", ratioText)
@@ -137,7 +185,8 @@ function buildPrompt(params: {
     .replace("{typography_direction}", _typographyDirection(params))
     .replace("{titolo}", params.titolo)
     .replace("{sottotitolo_block}", sottotitoloBlock)
-    .replace("{datetime_block}", datetimeBlock);
+    .replace("{datetime_block}", datetimeBlock)
+    .replace("{guest_block}", assetsBlock);
 }
 
 // ---------------------------------------------------------------------------
@@ -153,16 +202,26 @@ async function _kieCreateTask(
   apiKey: string,
   prompt: string,
   aspectRatio: string,
-  resolution: string
+  resolution: string,
+  inputUrls?: string[]
 ): Promise<string> {
-  const payload = {
-    model: "gpt-image-2-text-to-image",
-    input: {
-      prompt,
-      aspect_ratio: aspectRatio,
-      resolution,
-    },
-  };
+  const payload: Record<string, unknown> = inputUrls?.length
+    ? {
+        model: "gpt-image-2-image-to-image",
+        input: {
+          prompt,
+          input_urls: inputUrls,
+          aspect_ratio: aspectRatio,
+        },
+      }
+    : {
+        model: "gpt-image-2-text-to-image",
+        input: {
+          prompt,
+          aspect_ratio: aspectRatio,
+          resolution,
+        },
+      };
 
   const resp = await fetch(`${KIE_API_BASE}/jobs/createTask`, {
     method: "POST",
@@ -353,6 +412,7 @@ export async function POST(req: NextRequest) {
       tema?: string;
       aspectRatio?: string;
       sede: string;
+      assets?: PosterAsset[];
     };
 
     const {
@@ -379,8 +439,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Logo non trovato per la sede: ${sede}` }, { status: 400 });
     }
 
-    const ratio = KIE_SUPPORTED_RATIOS.has(aspectRatio) ? aspectRatio : "auto";
+    let ratio = KIE_SUPPORTED_RATIOS.has(aspectRatio) ? aspectRatio : "auto";
     const id = crypto.randomUUID();
+
+    const inputUrls = body.assets?.map((a) => a.imageUrl).filter(Boolean);
+    if (inputUrls?.length && ratio === "auto") {
+      ratio = "16:9";
+    }
 
     const prompt = buildPrompt({
       titolo,
@@ -390,9 +455,10 @@ export async function POST(req: NextRequest) {
       tema,
       aspectRatio: ratio,
       id,
+      assets: body.assets,
     });
 
-    const taskId = await _kieCreateTask(apiKey, prompt, ratio, "2K");
+    const taskId = await _kieCreateTask(apiKey, prompt, ratio, "2K", inputUrls);
     const urls = await _kiePollTask(apiKey, taskId);
     const bgBuffer = await _downloadImage(urls[0]);
 
