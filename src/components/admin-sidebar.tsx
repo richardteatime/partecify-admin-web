@@ -11,6 +11,7 @@ const links = [
   { href: "/admin/content", label: "Contenuti" },
   { href: "/admin/qr", label: "Codici QR" },
   { href: "/admin/registrations", label: "Registrazioni" },
+  { href: "/admin/wheel", label: "Ruota" },
   { href: "/admin/delete", label: "Eliminazione" },
 ];
 

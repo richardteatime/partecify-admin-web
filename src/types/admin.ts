@@ -71,3 +71,28 @@ export type PosterItem = {
   storagePath: string;
   createdAt: Date;
 };
+
+export type WheelSettings = {
+  theme: "base" | "neon" | "gold" | "party";
+  mode: "single" | "sequence";
+  sequenceSteps: Array<{ type: "random" | "fixed"; winnerName: string | null }>;
+  forcedWinner: string | null;
+  soundEnabled: boolean;
+};
+
+export type WheelItem = {
+  id: string;
+  title: string;
+  location: string;
+  participants: string[];
+  sourceRegistrationId: string;
+  settings: WheelSettings;
+  createdAt: Date;
+};
+
+export type WheelSpin = {
+  id: string;
+  spinIndex: number;
+  winnerName: string;
+  timestamp: Date;
+};

@@ -28,6 +28,9 @@ import {
   RegistrationItem,
   StorageImageEntry,
   TimedNewsItem,
+  WheelItem,
+  WheelSettings,
+  WheelSpin,
 } from "@/types/admin";
 import { mapUser, UserModel } from "@/types/user";
 
@@ -455,5 +458,109 @@ export const adminService = {
       createdAt: Timestamp.now(),
     });
     return docRef.id;
+  },
+
+  async fetchWheels(): Promise<WheelItem[]> {
+    const snap = await getDocs(collection(db, "wheels"));
+    return snap.docs
+      .map((d) => {
+        const data = d.data();
+        const rawSettings = data.settings ?? {};
+        return {
+          id: d.id,
+          title: String(data.title ?? ""),
+          location: String(data.location ?? ""),
+          participants: Array.isArray(data.participants) ? data.participants : [],
+          sourceRegistrationId: String(data.sourceRegistrationId ?? ""),
+          settings: {
+            theme: (rawSettings.theme as WheelSettings["theme"]) ?? "party",
+            mode: (rawSettings.mode as WheelSettings["mode"]) ?? "single",
+            sequenceSteps: Array.isArray(rawSettings.sequenceSteps)
+              ? rawSettings.sequenceSteps
+              : [],
+            forcedWinner: rawSettings.forcedWinner ?? null,
+            soundEnabled: Boolean(rawSettings.soundEnabled ?? true),
+          },
+          createdAt:
+            data.createdAt instanceof Timestamp
+              ? data.createdAt.toDate()
+              : new Date(),
+        };
+      })
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  },
+
+  async createWheel(params: {
+    title: string;
+    location: string;
+    participants: string[];
+    sourceRegistrationId: string;
+    settings: WheelSettings;
+  }): Promise<string> {
+    const docRef = await addDoc(collection(db, "wheels"), {
+      title: params.title.trim(),
+      location: params.location.trim(),
+      participants: params.participants,
+      sourceRegistrationId: params.sourceRegistrationId,
+      settings: params.settings,
+      createdAt: Timestamp.now(),
+    });
+    return docRef.id;
+  },
+
+  async fetchWheel(id: string): Promise<WheelItem | null> {
+    const snap = await getDoc(doc(db, "wheels", id));
+    if (!snap.exists()) return null;
+    const data = snap.data()!;
+    const rawSettings = data.settings ?? {};
+    return {
+      id: snap.id,
+      title: String(data.title ?? ""),
+      location: String(data.location ?? ""),
+      participants: Array.isArray(data.participants) ? data.participants : [],
+      sourceRegistrationId: String(data.sourceRegistrationId ?? ""),
+      settings: {
+        theme: (rawSettings.theme as WheelSettings["theme"]) ?? "party",
+        mode: (rawSettings.mode as WheelSettings["mode"]) ?? "single",
+        sequenceSteps: Array.isArray(rawSettings.sequenceSteps)
+          ? rawSettings.sequenceSteps
+          : [],
+        forcedWinner: rawSettings.forcedWinner ?? null,
+        soundEnabled: Boolean(rawSettings.soundEnabled ?? true),
+      },
+      createdAt:
+        data.createdAt instanceof Timestamp
+          ? data.createdAt.toDate()
+          : new Date(),
+    };
+  },
+
+  async fetchWheelSpins(wheelId: string): Promise<WheelSpin[]> {
+    const snap = await getDocs(collection(db, "wheels", wheelId, "spins"));
+    return snap.docs
+      .map((d) => {
+        const data = d.data();
+        return {
+          id: d.id,
+          spinIndex: Number(data.spinIndex ?? 0),
+          winnerName: String(data.winnerName ?? ""),
+          timestamp:
+            data.timestamp instanceof Timestamp
+              ? data.timestamp.toDate()
+              : new Date(),
+        };
+      })
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+  },
+
+  async saveWheelSpin(
+    wheelId: string,
+    spin: Omit<WheelSpin, "id" | "timestamp">
+  ): Promise<void> {
+    await addDoc(collection(db, "wheels", wheelId, "spins"), {
+      spinIndex: spin.spinIndex,
+      winnerName: spin.winnerName,
+      timestamp: Timestamp.now(),
+    });
   },
 };
