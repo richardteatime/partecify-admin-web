@@ -8,7 +8,7 @@ export interface WheelSegment {
 export type ThemeName = 'base' | 'neon' | 'gold' | 'party';
 
 export interface SequenceStep {
-  id: string;
+  id?: string;
   type: 'random' | 'fixed';
   winnerName: string | null;
 }
