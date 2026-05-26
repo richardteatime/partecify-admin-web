@@ -46,8 +46,10 @@ export default function PostersPanel() {
     try {
       const data = await adminService.fetchPosters();
       setPosters(data);
-    } catch {
-      setMessage("Errore durante il caricamento della galleria.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Errore sconosciuto";
+      setMessage(`Errore galleria: ${msg}`);
+      console.error("[loadPosters]", err);
     } finally {
       setLoadingPosters(false);
     }
