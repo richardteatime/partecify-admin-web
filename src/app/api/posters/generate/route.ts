@@ -398,7 +398,7 @@ export async function POST(req: NextRequest) {
 
     const finalBuffer = await compositePoster(bgBuffer, logoPath, ratio === "auto" ? undefined : ratio);
 
-    return new Response(finalBuffer, {
+    return new Response(new Uint8Array(finalBuffer), {
       headers: {
         "Content-Type": "image/png",
         "Cache-Control": "no-store",
