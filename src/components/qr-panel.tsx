@@ -1,8 +1,59 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import QRCode from "qrcode";
 import { adminService } from "@/services/admin-service";
 import { buildQrString, decodeQrMeta, isQrForDate } from "@/lib/qr";
+
+function QrCard({ raw }: { raw: string }) {
+  const [dataUrl, setDataUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    QRCode.toDataURL(raw, { width: 200, margin: 2 })
+      .then(setDataUrl)
+      .catch(() => setDataUrl(null));
+  }, [raw]);
+
+  const meta = decodeQrMeta(raw);
+
+  function handleDownload() {
+    if (!dataUrl) return;
+    const a = document.createElement("a");
+    a.href = dataUrl;
+    a.download = `qr_${raw.replaceAll("|", "_")}.png`;
+    a.click();
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-4 rounded-xl border border-neutral-200 p-4 sm:flex-row sm:items-start">
+      {dataUrl ? (
+        <img
+          src={dataUrl}
+          alt="Codice QR"
+          className="h-40 w-40 rounded-lg border border-neutral-100"
+        />
+      ) : (
+        <div className="flex h-40 w-40 items-center justify-center rounded-lg border border-neutral-100 bg-neutral-50 text-xs text-neutral-400">
+          Caricamento...
+        </div>
+      )}
+      <div className="flex-1 text-center sm:text-left">
+        <h3 className="font-semibold">{meta.title}</h3>
+        <pre className="mt-1 whitespace-pre-wrap text-sm text-neutral-500">
+          {meta.subtitle}
+        </pre>
+        {dataUrl && (
+          <button
+            onClick={handleDownload}
+            className="mt-3 rounded-lg border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50"
+          >
+            Scarica PNG
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function QrPanel() {
   const [locations, setLocations] = useState<string[]>([]);
@@ -119,17 +170,9 @@ export default function QrPanel() {
           <p className="text-sm text-neutral-500">Nessun codice QR disponibile oggi.</p>
         ) : (
           <div className="space-y-3">
-            {todayCodes.map((raw) => {
-              const meta = decodeQrMeta(raw);
-              return (
-                <div key={raw} className="rounded-xl border border-neutral-200 p-4">
-                  <h3 className="font-semibold">{meta.title}</h3>
-                  <pre className="mt-2 whitespace-pre-wrap text-sm text-neutral-500">
-                    {meta.subtitle}
-                  </pre>
-                </div>
-              );
-            })}
+            {todayCodes.map((raw) => (
+              <QrCard key={raw} raw={raw} />
+            ))}
           </div>
         )}
       </div>
