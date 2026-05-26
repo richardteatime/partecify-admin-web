@@ -57,3 +57,17 @@ export type AdminStats = {
   totalTimedNews: number;
   totalRegistrations: number;
 };
+
+export type PosterItem = {
+  id: string;
+  title: string;
+  subtitle?: string;
+  eventDate?: string;
+  eventTime?: string;
+  theme?: string;
+  aspectRatio: string;
+  location: string;
+  imageUrl: string;
+  storagePath: string;
+  createdAt: Date;
+};

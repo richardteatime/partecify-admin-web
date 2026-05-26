@@ -24,6 +24,7 @@ import {
   AdminStats,
   EventItem,
   NewsItem,
+  PosterItem,
   RegistrationItem,
   StorageImageEntry,
   TimedNewsItem,
@@ -419,5 +420,40 @@ export const adminService = {
       totalTimedNews: Array.isArray(mainData?.timedNews) ? mainData.timedNews.length : 0,
       totalRegistrations: eventRegSnap.size + timedRegSnap.size,
     };
+  },
+
+  async fetchPosters(): Promise<PosterItem[]> {
+    const snap = await getDocs(collection(db, "posters"));
+    return snap.docs
+      .map((d) => {
+        const data = d.data();
+        return {
+          id: d.id,
+          title: String(data.title ?? ""),
+          subtitle: data.subtitle ? String(data.subtitle) : undefined,
+          eventDate: data.eventDate ? String(data.eventDate) : undefined,
+          eventTime: data.eventTime ? String(data.eventTime) : undefined,
+          theme: data.theme ? String(data.theme) : undefined,
+          aspectRatio: String(data.aspectRatio ?? "16:9"),
+          location: String(data.location ?? ""),
+          imageUrl: String(data.imageUrl ?? ""),
+          storagePath: String(data.storagePath ?? ""),
+          createdAt:
+            data.createdAt instanceof Timestamp
+              ? data.createdAt.toDate()
+              : new Date(),
+        };
+      })
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  },
+
+  async savePosterMetadata(
+    item: Omit<PosterItem, "id" | "createdAt">
+  ): Promise<string> {
+    const docRef = await addDoc(collection(db, "posters"), {
+      ...item,
+      createdAt: Timestamp.now(),
+    });
+    return docRef.id;
   },
 };
