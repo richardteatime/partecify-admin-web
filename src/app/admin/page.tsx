@@ -1,94 +1,200 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import { useEffect, useState } from "react";
 import { adminService } from "@/services/admin-service";
-import { AdminStats } from "@/types/admin";
+import { AdminStats, RegistrationItem, TimedNewsItem, WheelItem } from "@/types/admin";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, Trophy, BarChart3, ClipboardList, Newspaper, Calendar, Clock } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
+import { Users, Calendar, CircleDot, ClipboardList } from "lucide-react";
 
-const statMeta = [
-  { key: "totalUsers" as const, label: "Utenti registrati", icon: Users },
-  { key: "totalGamePoints" as const, label: "Punti totali", icon: Trophy },
-  { key: "avgGamePoints" as const, label: "Media punti", icon: BarChart3 },
-  { key: "totalRegistrations" as const, label: "Registrazioni", icon: ClipboardList },
-  { key: "totalNews" as const, label: "News", icon: Newspaper },
-  { key: "totalEvents" as const, label: "Eventi", icon: Calendar },
-  { key: "totalTimedNews" as const, label: "Notizie temporizzate", icon: Clock },
-];
+export const dynamic = "force-dynamic";
 
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [wheels, setWheels] = useState<WheelItem[]>([]);
+  const [timedNews, setTimedNews] = useState<TimedNewsItem[]>([]);
+  const [registrations, setRegistrations] = useState<RegistrationItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    adminService
-      .fetchStats()
-      .then(setStats)
+    Promise.all([
+      adminService.fetchStats(),
+      adminService.fetchWheels(),
+      adminService.loadDeletableTimedNews(),
+      adminService.loadRegistrations(),
+    ])
+      .then(([statsData, wheelsData, timedNewsData, regsData]) => {
+        setStats(statsData);
+        setWheels(wheelsData.slice(0, 5));
+        setTimedNews(timedNewsData.slice(-5).reverse());
+        setRegistrations(regsData.filter((r) => r.isTimed).slice(0, 5));
+      })
       .finally(() => setLoading(false));
   }, []);
+
+  const chartData = stats
+    ? Object.entries(stats.usersBySede)
+        .map(([sede, count]) => ({ sede, count }))
+        .sort((a, b) => b.count - a.count)
+    : [];
+
+  const chartConfig = {
+    count: { label: "Utenti", color: "hsl(var(--primary))" },
+  } satisfies ChartConfig;
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-48 rounded-lg" />
+        <div className="grid gap-4 md:grid-cols-3">
+          <Skeleton className="h-40 rounded-xl" />
+          <Skeleton className="h-40 rounded-xl md:col-span-2" />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Skeleton className="h-64 rounded-xl" />
+          <Skeleton className="h-64 rounded-xl" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight">Panoramica</h2>
-        <p className="text-muted-foreground mt-1">
-          Dati aggiornati in tempo reale dalla piattaforma.
-        </p>
+        <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+        <p className="text-muted-foreground mt-1">Panoramica della piattaforma in tempo reale.</p>
       </div>
 
-      {loading || !stats ? (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {Array.from({ length: 7 }).map((_, i) => (
-            <Skeleton key={i} className="h-28 w-full rounded-xl" />
-          ))}
-        </div>
-      ) : (
-        <>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {statMeta.map(({ key, label, icon: Icon }) => (
-              <Card key={key}>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">
-                    {label}
-                  </CardTitle>
-                  <Icon className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <p className="text-3xl font-bold">{stats[key]}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+      {/* Top row: Total users + Users by location chart */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="md:col-span-1">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Utenti registrati</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <p className="text-4xl font-bold">{stats?.totalUsers ?? 0}</p>
+            <p className="text-xs text-muted-foreground mt-1">Totale utenti sulla piattaforma</p>
+          </CardContent>
+        </Card>
 
-          {Object.keys(stats.usersBySede).length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Utenti per sede</CardTitle>
-                <CardDescription>Distribuzione degli utenti sulle sedi attive</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-                  {Object.entries(stats.usersBySede)
-                    .sort((a, b) => b[1] - a[1])
-                    .map(([sede, count]) => (
-                      <div
-                        key={sede}
-                        className="flex items-center justify-between rounded-lg border px-4 py-3"
-                      >
-                        <span className="text-sm font-medium">{sede}</span>
-                        <Badge variant="secondary">{count}</Badge>
-                      </div>
-                    ))}
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Utenti per sede</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {chartData.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nessun dato disponibile.</p>
+            ) : (
+              <ChartContainer config={chartConfig} className="h-48 w-full">
+                <BarChart data={chartData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                  <XAxis dataKey="sede" tickLine={false} axisLine={false} tickMargin={8} />
+                  <YAxis tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} />
+                  <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+                  <Bar dataKey="count" fill="var(--color-count)" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ChartContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Middle row: Latest wheels + Latest events */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <CircleDot className="h-4 w-4 text-primary" />
+                Ultime ruote create
+              </CardTitle>
+              <CardDescription>Le ruote della fortuna generate di recente</CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {wheels.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nessuna ruota creata.</p>
+            ) : (
+              wheels.map((w) => (
+                <div key={w.id} className="flex items-center justify-between rounded-lg border px-4 py-3">
+                  <div>
+                    <p className="text-sm font-medium">{w.title}</p>
+                    <p className="text-xs text-muted-foreground">{w.location} · {w.participants.length} partecipanti</p>
+                  </div>
+                  <Badge variant="outline">{w.settings.mode}</Badge>
                 </div>
-              </CardContent>
-            </Card>
+              ))
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-primary" />
+                Ultimi eventi
+              </CardTitle>
+              <CardDescription>Gli ultimi timed news creati</CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {timedNews.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nessun evento creato.</p>
+            ) : (
+              timedNews.map((t) => (
+                <div key={t.id} className="flex items-center justify-between rounded-lg border px-4 py-3">
+                  <div>
+                    <p className="text-sm font-medium">{t.title}</p>
+                    <p className="text-xs text-muted-foreground">{t.location}</p>
+                  </div>
+                  <Badge variant="secondary">
+                    {t.startAt.toLocaleDateString("it-IT")}
+                  </Badge>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Bottom row: Latest registrations */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <ClipboardList className="h-4 w-4 text-primary" />
+              Ultime partecipazioni
+            </CardTitle>
+            <CardDescription>Registrazioni agli eventi con numero di partecipanti</CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {registrations.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nessuna registrazione trovata.</p>
+          ) : (
+            registrations.map((r) => (
+              <div key={r.docId} className="flex items-center justify-between rounded-lg border px-4 py-3">
+                <div>
+                  <p className="text-sm font-medium">{r.title}</p>
+                  <p className="text-xs text-muted-foreground">{r.location}</p>
+                </div>
+                <Badge>{r.userCount} partecipanti</Badge>
+              </div>
+            ))
           )}
-        </>
-      )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
