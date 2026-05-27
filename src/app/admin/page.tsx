@@ -3,6 +3,20 @@
 import { useEffect, useState } from "react";
 import { adminService } from "@/services/admin-service";
 import { AdminStats } from "@/types/admin";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Users, Trophy, BarChart3, ClipboardList, Newspaper, Calendar, Clock } from "lucide-react";
+
+const statMeta = [
+  { key: "totalUsers" as const, label: "Utenti registrati", icon: Users },
+  { key: "totalGamePoints" as const, label: "Punti totali", icon: Trophy },
+  { key: "avgGamePoints" as const, label: "Media punti", icon: BarChart3 },
+  { key: "totalRegistrations" as const, label: "Registrazioni", icon: ClipboardList },
+  { key: "totalNews" as const, label: "News", icon: Newspaper },
+  { key: "totalEvents" as const, label: "Eventi", icon: Calendar },
+  { key: "totalTimedNews" as const, label: "Notizie temporizzate", icon: Clock },
+];
 
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState<AdminStats | null>(null);
@@ -15,77 +29,64 @@ export default function AdminDashboardPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <h2 className="text-2xl font-bold">Panoramica</h2>
-        <p className="text-neutral-500">Caricamento statistiche...</p>
-      </div>
-    );
-  }
-
-  if (!stats) {
-    return (
-      <div className="space-y-6">
-        <h2 className="text-2xl font-bold">Panoramica</h2>
-        <p className="text-neutral-500">Impossibile caricare le statistiche.</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
-        <h2 className="text-2xl font-bold">Panoramica</h2>
-        <p className="text-neutral-500">
+        <h2 className="text-3xl font-bold tracking-tight">Panoramica</h2>
+        <p className="text-muted-foreground mt-1">
           Dati aggiornati in tempo reale dalla piattaforma.
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Utenti registrati" value={stats.totalUsers} />
-        <StatCard label="Punti totali" value={stats.totalGamePoints} />
-        <StatCard label="Media punti" value={stats.avgGamePoints} />
-        <StatCard label="Registrazioni" value={stats.totalRegistrations} />
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="News" value={stats.totalNews} />
-        <StatCard label="Eventi" value={stats.totalEvents} />
-        <StatCard label="Notizie temporizzate" value={stats.totalTimedNews} />
-      </div>
-
-      {Object.keys(stats.usersBySede).length > 0 && (
-        <div className="rounded-2xl bg-white p-6 shadow-sm">
-          <h3 className="mb-4 font-semibold">Utenti per sede</h3>
-          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-            {Object.entries(stats.usersBySede)
-              .sort((a, b) => b[1] - a[1])
-              .map(([sede, count]) => (
-                <div
-                  key={sede}
-                  className="flex items-center justify-between rounded-xl border border-neutral-200 px-4 py-3"
-                >
-                  <span className="text-sm font-medium text-neutral-700">
-                    {sede}
-                  </span>
-                  <span className="rounded-full bg-red-50 px-2 py-1 text-xs font-semibold text-red-700">
-                    {count}
-                  </span>
-                </div>
-              ))}
-          </div>
+      {loading || !stats ? (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 7 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 w-full rounded-xl" />
+          ))}
         </div>
-      )}
-    </div>
-  );
-}
+      ) : (
+        <>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {statMeta.map(({ key, label, icon: Icon }) => (
+              <Card key={key}>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    {label}
+                  </CardTitle>
+                  <Icon className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-3xl font-bold">{stats[key]}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
 
-function StatCard({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-2xl bg-white p-5 shadow-sm">
-      <p className="text-sm text-neutral-500">{label}</p>
-      <p className="mt-2 text-3xl font-bold text-neutral-900">{value}</p>
+          {Object.keys(stats.usersBySede).length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Utenti per sede</CardTitle>
+                <CardDescription>Distribuzione degli utenti sulle sedi attive</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+                  {Object.entries(stats.usersBySede)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([sede, count]) => (
+                      <div
+                        key={sede}
+                        className="flex items-center justify-between rounded-lg border px-4 py-3"
+                      >
+                        <span className="text-sm font-medium">{sede}</span>
+                        <Badge variant="secondary">{count}</Badge>
+                      </div>
+                    ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
     </div>
   );
 }
