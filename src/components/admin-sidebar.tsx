@@ -129,7 +129,7 @@ export default function AdminSidebar() {
       </div>
 
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex w-64 flex-col border-r bg-card">
+      <aside className="hidden lg:flex h-screen w-64 flex-col border-r bg-card sticky top-0">
         {sidebarContent}
       </aside>
     </>
