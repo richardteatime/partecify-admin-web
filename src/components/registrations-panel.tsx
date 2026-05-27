@@ -12,6 +12,21 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +35,7 @@ import { toast } from "sonner";
 export default function RegistrationsPanel() {
   const [items, setItems] = useState<RegistrationItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [viewingItem, setViewingItem] = useState<RegistrationItem | null>(null);
 
   async function load() {
     setLoading(true);
@@ -96,14 +112,77 @@ export default function RegistrationsPanel() {
                     </p>
                   </div>
 
-                  <Button onClick={() => exportCsv(item)}>
-                    Esporta CSV
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setViewingItem(item)}
+                    >
+                      Visualizza
+                    </Button>
+                    <Button onClick={() => exportCsv(item)}>
+                      Esporta CSV
+                    </Button>
+                  </div>
                 </div>
               </Card>
             ))}
           </div>
         )}
+
+        <Dialog
+          open={!!viewingItem}
+          onOpenChange={(open) => !open && setViewingItem(null)}
+        >
+          <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Partecipanti</DialogTitle>
+              <DialogDescription>
+                {viewingItem?.title} · {viewingItem?.location} ·{" "}
+                {viewingItem?.userCount} iscritti
+              </DialogDescription>
+            </DialogHeader>
+
+            {viewingItem && (
+              <div className="overflow-hidden rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Telefono</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {viewingItem.users.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={3}
+                          className="text-center text-muted-foreground"
+                        >
+                          Nessun partecipante
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      viewingItem.users.map((u, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell className="font-medium">
+                            {String(u.name ?? "")}
+                          </TableCell>
+                          <TableCell>
+                            {String(u.email ?? "")}
+                          </TableCell>
+                          <TableCell>
+                            {String(u.phone ?? "")}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );
