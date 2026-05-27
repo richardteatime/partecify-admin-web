@@ -3,11 +3,44 @@
 import { useEffect, useMemo, useState } from "react";
 import { adminService } from "@/services/admin-service";
 import { RegistrationItem, WheelItem, WheelSettings, WheelSpin } from "@/types/admin";
-
-type Tab = "create" | "list";
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from "@/components/ui/tabs";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function WheelPanel() {
-  const [activeTab, setActiveTab] = useState<Tab>("create");
   const [registrations, setRegistrations] = useState<RegistrationItem[]>([]);
   const [wheels, setWheels] = useState<WheelItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,7 +82,8 @@ export default function WheelPanel() {
     }
   }
 
-  function handleRegistrationChange(docId: string) {
+  function handleRegistrationChange(docId: string | null) {
+    if (!docId) return;
     setSelectedRegistration(docId);
     const reg = registrations.find((r) => r.docId === docId);
     if (reg) {
@@ -107,7 +141,6 @@ export default function WheelPanel() {
       setMode("single");
       setSpinCount(5);
       await loadData();
-      setActiveTab("list");
     } catch (err: unknown) {
       setMessage(err instanceof Error ? err.message : "Errore creazione ruota.");
     } finally {
@@ -147,221 +180,256 @@ export default function WheelPanel() {
         </p>
       </div>
 
-      <div className="flex gap-2">
-        <button
-          onClick={() => setActiveTab("create")}
-          className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
-            activeTab === "create"
-              ? "bg-red-600 text-white"
-              : "border border-neutral-300 hover:bg-neutral-50"
-          }`}
-        >
-          Crea
-        </button>
-        <button
-          onClick={() => setActiveTab("list")}
-          className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
-            activeTab === "list"
-              ? "bg-red-600 text-white"
-              : "border border-neutral-300 hover:bg-neutral-50"
-          }`}
-        >
-          Lista ruote
-        </button>
-      </div>
+      <Tabs defaultValue="create" className="w-full">
+        <TabsList>
+          <TabsTrigger value="create">Crea</TabsTrigger>
+          <TabsTrigger value="list">Lista ruote</TabsTrigger>
+        </TabsList>
 
-      {message && (
-        <div className="rounded-xl bg-neutral-100 px-4 py-3 text-sm text-neutral-700">
-          {message}
-        </div>
-      )}
-
-      {activeTab === "create" && (
-        <form onSubmit={handleCreate} className="rounded-2xl bg-white p-6 shadow-sm space-y-4">
-          <h3 className="font-semibold">Nuova ruota da registrazione</h3>
-
-          <div>
-            <label className="mb-2 block text-sm font-medium">Registrazione *</label>
-            <select
-              className="w-full rounded-xl border border-neutral-300 px-4 py-3"
-              value={selectedRegistration}
-              onChange={(e) => handleRegistrationChange(e.target.value)}
-            >
-              <option value="">Seleziona una timed news con partecipanti</option>
-              {registrations.map((reg) => (
-                <option key={reg.docId} value={reg.docId}>
-                  {reg.title} ({reg.location}) — {reg.userCount} partecipanti
-                </option>
-              ))}
-            </select>
+        {message && (
+          <div className="mt-4 rounded-xl bg-neutral-100 px-4 py-3 text-sm text-neutral-700">
+            {message}
           </div>
+        )}
 
-          <div>
-            <label className="mb-2 block text-sm font-medium">Titolo ruota</label>
-            <input
-              className="w-full rounded-xl border border-neutral-300 px-4 py-3"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Es. Ruota Serata Live"
-            />
-          </div>
+        <TabsContent value="create" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Nuova ruota da registrazione</CardTitle>
+              <CardDescription>
+                Seleziona una timed news con partecipanti per creare una ruota.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form id="wheel-form" onSubmit={handleCreate} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="registration">Registrazione *</Label>
+                  <Select
+                    value={selectedRegistration}
+                    onValueChange={handleRegistrationChange}
+                  >
+                    <SelectTrigger id="registration">
+                      <SelectValue placeholder="Seleziona una timed news con partecipanti" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {registrations.map((reg) => (
+                        <SelectItem key={reg.docId} value={reg.docId}>
+                          {reg.title} ({reg.location}) — {reg.userCount} partecipanti
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="mb-2 block text-sm font-medium">Tema</label>
-              <select
-                className="w-full rounded-xl border border-neutral-300 px-4 py-3"
-                value={theme}
-                onChange={(e) => setTheme(e.target.value as WheelSettings["theme"])}
-              >
-                {themeOptions.map((t) => (
-                  <option key={t} value={t}>{t.toUpperCase()}</option>
-                ))}
-              </select>
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="title">Titolo ruota</Label>
+                  <Input
+                    id="title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Es. Ruota Serata Live"
+                  />
+                </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-medium">Modalita</label>
-              <select
-                className="w-full rounded-xl border border-neutral-300 px-4 py-3"
-                value={mode}
-                onChange={(e) => setMode(e.target.value as WheelSettings["mode"])}
-              >
-                <option value="single">Singolo spin</option>
-                <option value="sequence">Sequenza multi-spin</option>
-              </select>
-            </div>
-          </div>
-
-          {mode === "sequence" && (
-            <div>
-              <label className="mb-2 block text-sm font-medium">Numero di spin</label>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setSpinCount((c) => Math.max(1, c - 1))}
-                  className="h-10 w-10 rounded-lg border border-neutral-300 hover:bg-neutral-100"
-                >
-                  -
-                </button>
-                <span className="w-8 text-center font-mono font-bold">{spinCount}</span>
-                <button
-                  type="button"
-                  onClick={() => setSpinCount((c) => c + 1)}
-                  className="h-10 w-10 rounded-lg border border-neutral-300 hover:bg-neutral-100"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={creating}
-            className="rounded-xl bg-red-600 px-5 py-3 font-medium text-white hover:bg-red-700 disabled:opacity-60"
-          >
-            {creating ? "Creazione in corso..." : "Crea ruota"}
-          </button>
-        </form>
-      )}
-
-      {activeTab === "list" && (
-        <div className="rounded-2xl bg-white p-6 shadow-sm">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="font-semibold">Ruote create</h3>
-            <button
-              onClick={loadData}
-              className="rounded-xl border border-neutral-300 px-4 py-2 text-sm hover:bg-neutral-50"
-            >
-              Aggiorna
-            </button>
-          </div>
-
-          {loading ? (
-            <p className="text-sm text-neutral-500">Caricamento...</p>
-          ) : wheels.length === 0 ? (
-            <p className="text-sm text-neutral-500">Nessuna ruota creata.</p>
-          ) : (
-            <div className="space-y-3">
-              {wheels.map((w) => (
-                <div
-                  key={w.id}
-                  className="flex flex-col gap-3 rounded-xl border border-neutral-200 p-4 sm:flex-row sm:items-center"
-                >
-                  <div className="flex-1">
-                    <h4 className="font-medium">{w.title}</h4>
-                    <p className="text-sm text-neutral-500">
-                      {w.location} · {w.participants.length} partecipanti · {w.settings.theme}
-                    </p>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="theme">Tema</Label>
+                    <Select
+                      value={theme}
+                      onValueChange={(v) => setTheme(v as WheelSettings["theme"])}
+                    >
+                      <SelectTrigger id="theme">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {themeOptions.map((t) => (
+                          <SelectItem key={t} value={t}>{t.toUpperCase()}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={() => copyLink(w.id)}
-                      className="rounded-lg border border-neutral-300 px-3 py-2 text-sm hover:bg-neutral-50"
+
+                  <div className="space-y-2">
+                    <Label htmlFor="mode">Modalità</Label>
+                    <Select
+                      value={mode}
+                      onValueChange={(v) => setMode(v as WheelSettings["mode"])}
                     >
-                      Copia link
-                    </button>
-                    <a
-                      href={`${origin}/wheel/${w.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700"
-                    >
-                      Apri ruota
-                    </a>
-                    <button
-                      onClick={() => viewWinners(w)}
-                      className="rounded-lg border border-neutral-300 px-3 py-2 text-sm hover:bg-neutral-50"
-                    >
-                      Vedi vincitori
-                    </button>
+                      <SelectTrigger id="mode">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="single">Singolo spin</SelectItem>
+                        <SelectItem value="sequence">Sequenza multi-spin</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
+
+                {mode === "sequence" && (
+                  <div className="space-y-2">
+                    <Label>Numero di spin</Label>
+                    <div className="flex items-center gap-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setSpinCount((c) => Math.max(1, c - 1))}
+                      >
+                        -
+                      </Button>
+                      <span className="w-8 text-center font-mono font-bold">{spinCount}</span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setSpinCount((c) => c + 1)}
+                      >
+                        +
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </form>
+            </CardContent>
+            <CardFooter>
+              <Button type="submit" form="wheel-form" disabled={creating}>
+                {creating ? "Creazione in corso..." : "Crea ruota"}
+              </Button>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="list" className="mt-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Ruote create</CardTitle>
+                <CardDescription>
+                  Gestisci le ruote esistenti e visualizza i vincitori.
+                </CardDescription>
+              </div>
+              <Button variant="outline" onClick={loadData}>
+                Aggiorna
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="flex items-center gap-4">
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-4 w-1/3" />
+                        <Skeleton className="h-3 w-1/2" />
+                      </div>
+                      <Skeleton className="h-8 w-24" />
+                    </div>
+                  ))}
+                </div>
+              ) : wheels.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Nessuna ruota creata.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {wheels.map((w) => (
+                    <Card
+                      key={w.id}
+                      className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center"
+                    >
+                      <div className="flex-1 space-y-1">
+                        <CardTitle className="text-sm">{w.title}</CardTitle>
+                        <CardDescription>
+                          {w.location} · {w.participants.length} partecipanti · {w.settings.theme}
+                        </CardDescription>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => copyLink(w.id)}
+                        >
+                          Copia link
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="inline-flex items-center justify-center"
+                          onClick={() => window.open(`${origin}/wheel/${w.id}`, "_blank", "noopener,noreferrer")}
+                        >
+                          Apri ruota
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => viewWinners(w)}
+                        >
+                          Vedi vincitori
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Winners Dialog */}
+      <Dialog
+        open={viewingWheel !== null}
+        onOpenChange={(open) => {
+          if (!open) setViewingWheel(null);
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Vincitori — {viewingTitle}</DialogTitle>
+            <DialogDescription>
+              Elenco degli spin effettuati su questa ruota.
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingSpins ? (
+            <div className="space-y-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full" />
               ))}
             </div>
-          )}
-        </div>
-      )}
-
-      {/* Winners modal */}
-      {viewingWheel && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="font-semibold">Vincitori — {viewingTitle}</h3>
-              <button
-                onClick={() => setViewingWheel(null)}
-                className="text-neutral-400 hover:text-neutral-700"
-              >
-                Chiudi
-              </button>
-            </div>
-
-            {loadingSpins ? (
-              <p className="text-sm text-neutral-500">Caricamento...</p>
-            ) : spins.length === 0 ? (
-              <p className="text-sm text-neutral-500">Nessuno spin effettuato.</p>
-            ) : (
-              <div className="max-h-[60vh] overflow-y-auto space-y-2">
+          ) : spins.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Nessuno spin effettuato.
+            </p>
+          ) : (
+            <ScrollArea className="max-h-[60vh]">
+              <div className="space-y-2 pr-4">
                 {spins.map((s) => (
                   <div
                     key={s.id}
-                    className="flex items-center justify-between rounded-lg border border-neutral-200 px-4 py-3"
+                    className="flex items-center justify-between rounded-lg border px-4 py-3"
                   >
                     <span className="font-medium">
                       #{s.spinIndex + 1} — {s.winnerName}
                     </span>
-                    <span className="text-xs text-neutral-500">
+                    <Badge variant="secondary">
                       {s.timestamp.toLocaleString("it-IT")}
-                    </span>
+                    </Badge>
                   </div>
                 ))}
               </div>
-            )}
-          </div>
-        </div>
-      )}
+            </ScrollArea>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setViewingWheel(null)}
+            >
+              Chiudi
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
