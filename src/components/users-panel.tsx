@@ -275,7 +275,7 @@ export default function UsersPanel() {
                 <Select
                   value={form.sede ?? ""}
                   onValueChange={(value) =>
-                    setForm((f) => ({ ...f, sede: value }))
+                    setForm((f) => ({ ...f, sede: value ?? "" }))
                   }
                 >
                   <SelectTrigger>

@@ -4,6 +4,18 @@ import { useEffect, useState } from "react";
 import { adminService } from "@/services/admin-service";
 import { RegistrationItem } from "@/types/admin";
 
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+
 export default function RegistrationsPanel() {
   const [items, setItems] = useState<RegistrationItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,62 +54,63 @@ export default function RegistrationsPanel() {
   }
 
   return (
-    <div className="rounded-2xl bg-white p-6 shadow-sm">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold">Registrazioni</h2>
-          <p className="text-sm text-neutral-500">
+    <Card>
+      <CardHeader className="flex flex-row items-start justify-between gap-4">
+        <div className="space-y-1">
+          <CardTitle>Registrazioni</CardTitle>
+          <CardDescription>
             Visualizza le registrazioni per eventi e notizie temporizzate.
-          </p>
+          </CardDescription>
         </div>
-
-        <button
-          onClick={load}
-          className="rounded-xl border border-neutral-300 px-4 py-2 hover:bg-neutral-50"
-        >
+        <Button variant="outline" onClick={load}>
           Aggiorna
-        </button>
-      </div>
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {message && (
+          <div className="rounded-lg border bg-muted px-4 py-3 text-sm text-muted-foreground">
+            {message}
+          </div>
+        )}
 
-      {message && (
-        <div className="mb-4 rounded-xl bg-neutral-100 px-4 py-3 text-sm text-neutral-700">
-          {message}
-        </div>
-      )}
+        {loading ? (
+          <div className="space-y-3">
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-20 w-full" />
+          </div>
+        ) : items.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Nessuna registrazione disponibile.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {items.map((item) => (
+              <Card
+                key={`${item.collection}-${item.docId}`}
+                className="p-4"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-1">
+                    <h3 className="font-semibold">{item.title}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {item.isTimed ? "Notizia temporizzata" : "Evento"} ·{" "}
+                      {item.location}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Utenti registrati: {item.userCount}
+                    </p>
+                  </div>
 
-      {loading ? (
-        <p className="text-sm text-neutral-500">Caricamento in corso...</p>
-      ) : items.length === 0 ? (
-        <p className="text-sm text-neutral-500">Nessuna registrazione disponibile.</p>
-      ) : (
-        <div className="space-y-3">
-          {items.map((item) => (
-            <div
-              key={`${item.collection}-${item.docId}`}
-              className="rounded-xl border border-neutral-200 p-4"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h3 className="font-semibold">{item.title}</h3>
-                  <p className="mt-1 text-sm text-neutral-500">
-                    {item.isTimed ? "Notizia temporizzata" : "Evento"} · {item.location}
-                  </p>
-                  <p className="mt-1 text-sm text-neutral-500">
-                    Utenti registrati: {item.userCount}
-                  </p>
+                  <Button onClick={() => exportCsv(item)}>
+                    Esporta CSV
+                  </Button>
                 </div>
-
-                <button
-                  onClick={() => exportCsv(item)}
-                  className="rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
-                >
-                  Esporta CSV
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
