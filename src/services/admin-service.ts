@@ -24,6 +24,7 @@ import {
   AdminStats,
   EventItem,
   NewsItem,
+  NotificationTarget,
   PosterItem,
   RegistrationItem,
   StorageImageEntry,
@@ -159,17 +160,14 @@ export const adminService = {
   async queueNotification(params: {
     title: string;
     body: string;
-    topic?: string;
+    target: NotificationTarget;
     data?: Record<string, unknown>;
     scheduledAt?: Date;
   }): Promise<void> {
     const payload: Record<string, unknown> = {
       title: params.title.trim(),
       body: params.body.trim(),
-      target: {
-        type: "topic",
-        topic: params.topic ?? "all",
-      },
+      target: params.target,
       data: params.data ?? {},
       status: "queued",
       createdAt: serverTimestamp(),

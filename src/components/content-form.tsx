@@ -5,7 +5,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { adminService } from "@/services/admin-service";
-import { StorageImageEntry } from "@/types/admin";
+import { NotificationTarget, StorageImageEntry } from "@/types/admin";
+import NotificationTargetSelector from "@/components/notification-target-selector";
 import {
   Card,
   CardHeader,
@@ -107,6 +108,7 @@ export default function ContentForm() {
   const [submitting, setSubmitting] = useState(false);
   const [loadingLocations, setLoadingLocations] = useState(true);
   const [loadingImages, setLoadingImages] = useState(false);
+  const [notificationTarget, setNotificationTarget] = useState<NotificationTarget>({ type: "broadcast" });
 
   const {
     register,
@@ -133,6 +135,7 @@ export default function ContentForm() {
 
   useEffect(() => {
     reset(getDefaultValues(selectedType));
+    setNotificationTarget({ type: "broadcast" });
   }, [selectedType, reset]);
 
   async function loadImages() {
@@ -144,6 +147,18 @@ export default function ContentForm() {
     } finally {
       setLoadingImages(false);
     }
+  }
+
+  function validateTarget(target: NotificationTarget): boolean {
+    if (target.type === "sedes" && target.sedes.length === 0) {
+      toast.error("Seleziona almeno una sede per la notifica.");
+      return false;
+    }
+    if (target.type === "users" && target.userUids.length === 0) {
+      toast.error("Seleziona almeno un utente per la notifica.");
+      return false;
+    }
+    return true;
   }
 
   async function onSubmit(data: FormData) {
@@ -160,10 +175,14 @@ export default function ContentForm() {
         });
 
         if (d.notifyOnSave) {
+          if (!validateTarget(notificationTarget)) {
+            setSubmitting(false);
+            return;
+          }
           await adminService.queueNotification({
             title: d.title,
             body: d.description,
-            topic: "all",
+            target: notificationTarget,
             data: {
               type: "news",
               title: d.title,
@@ -186,10 +205,14 @@ export default function ContentForm() {
         });
 
         if (d.notifyOnSave) {
+          if (!validateTarget(notificationTarget)) {
+            setSubmitting(false);
+            return;
+          }
           await adminService.queueNotification({
             title: d.title,
             body: `${d.selectedLocation} · ${d.eventDateTime}`,
-            topic: "all",
+            target: notificationTarget,
             data: {
               type: "event",
               title: d.title,
@@ -214,10 +237,14 @@ export default function ContentForm() {
         });
 
         if (d.notifyOnSave) {
+          if (!validateTarget(notificationTarget)) {
+            setSubmitting(false);
+            return;
+          }
           await adminService.queueNotification({
             title: d.title,
             body: `${d.selectedLocation} · ${d.startAt} → ${d.endAt}`,
-            topic: "all",
+            target: notificationTarget,
             data: {
               type: "timedNews",
               title: d.title,
@@ -232,10 +259,14 @@ export default function ContentForm() {
 
       if (selectedType === "notify") {
         const d = data as NotifyFormData;
+        if (!validateTarget(notificationTarget)) {
+          setSubmitting(false);
+          return;
+        }
         await adminService.queueNotification({
           title: d.title,
           body: d.description,
-          topic: "all",
+          target: notificationTarget,
           data: {
             type: "custom",
           },
@@ -244,6 +275,7 @@ export default function ContentForm() {
 
       toast.success("Operazione completata con successo.");
       reset(getDefaultValues(selectedType));
+      setNotificationTarget({ type: "broadcast" });
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "Errore durante il salvataggio."
@@ -347,16 +379,27 @@ export default function ContentForm() {
     </div>
   );
 
-  const notifySwitch = (
-    <div className="flex items-center gap-3 rounded-lg border p-4">
-      <Switch
-        checked={notifyOnSave || false}
-        onCheckedChange={(v) => setValue("notifyOnSave" as const, v)}
-        id="notify-on-save"
-      />
-      <Label htmlFor="notify-on-save" className="mb-0">
-        Invia una notifica dopo il salvataggio
-      </Label>
+  const notifySection = (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3 rounded-lg border p-4">
+        <Switch
+          checked={notifyOnSave || false}
+          onCheckedChange={(v) => {
+            setValue("notifyOnSave" as const, v);
+            if (!v) setNotificationTarget({ type: "broadcast" });
+          }}
+          id="notify-on-save"
+        />
+        <Label htmlFor="notify-on-save" className="mb-0">
+          Invia una notifica dopo il salvataggio
+        </Label>
+      </div>
+      {notifyOnSave && (
+        <NotificationTargetSelector
+          value={notificationTarget}
+          onChange={setNotificationTarget}
+        />
+      )}
     </div>
   );
 
@@ -394,7 +437,7 @@ export default function ContentForm() {
                 />
               </div>
               {imageField}
-              {notifySwitch}
+              {notifySection}
             </TabsContent>
 
             <TabsContent value="event">
@@ -422,7 +465,7 @@ export default function ContentForm() {
                   }</p>
                 )}
               </div>
-              {notifySwitch}
+              {notifySection}
             </TabsContent>
 
             <TabsContent value="timedNews">
@@ -457,11 +500,15 @@ export default function ContentForm() {
                   )}
                 </div>
               </div>
-              {notifySwitch}
+              {notifySection}
             </TabsContent>
 
             <TabsContent value="notify">
               {commonFields}
+              <NotificationTargetSelector
+                value={notificationTarget}
+                onChange={setNotificationTarget}
+              />
             </TabsContent>
 
             <Separator />

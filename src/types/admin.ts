@@ -96,3 +96,8 @@ export type WheelSpin = {
   winnerName: string;
   timestamp: Date;
 };
+
+export type NotificationTarget =
+  | { type: "broadcast" }
+  | { type: "sedes"; sedes: string[] }
+  | { type: "users"; userUids: string[] };
