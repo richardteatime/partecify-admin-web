@@ -1,22 +1,22 @@
 import { signInWithEmailAndPassword, signOut, User } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
+import { getAuthInstance, getDbInstance } from "@/lib/firebase";
 import { mapUser, UserModel } from "@/types/user";
 
 export async function loginWithEmailPassword(
   email: string,
   password: string
 ): Promise<User> {
-  const result = await signInWithEmailAndPassword(auth, email, password);
+  const result = await signInWithEmailAndPassword(getAuthInstance(), email, password);
   return result.user;
 }
 
 export async function logout(): Promise<void> {
-  await signOut(auth);
+  await signOut(getAuthInstance());
 }
 
 export async function getUserProfile(uid: string): Promise<UserModel | null> {
-  const snap = await getDoc(doc(db, "users", uid));
+  const snap = await getDoc(doc(getDbInstance(), "users", uid));
   if (!snap.exists()) return null;
   return mapUser({ ...snap.data(), uid } as Record<string, unknown>);
 }

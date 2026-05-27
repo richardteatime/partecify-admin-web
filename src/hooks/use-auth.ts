@@ -2,7 +2,7 @@
 
 import { onAuthStateChanged, User } from "firebase/auth";
 import { useEffect, useState } from "react";
-import { auth } from "@/lib/firebase";
+import { getAuthInstance } from "@/lib/firebase";
 import { requireAdminUser } from "@/services/auth-service";
 import { UserModel } from "@/types/user";
 
@@ -20,7 +20,7 @@ export function useAuth(): AuthState {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAuthStateChanged(getAuthInstance(), async (user) => {
       try {
         setLoading(true);
         setError(null);

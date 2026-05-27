@@ -18,7 +18,7 @@ import {
   listAll,
   ref,
 } from "firebase/storage";
-import { db, storage } from "@/lib/firebase";
+import { getDbInstance, getStorageInstance } from "@/lib/firebase";
 import { formatDate, formatTime } from "@/lib/format";
 import {
   AdminStats,
@@ -34,7 +34,7 @@ import {
 } from "@/types/admin";
 import { mapUser, UserModel } from "@/types/user";
 
-const mainDocRef = doc(db, "global_data", "main");
+const mainDocRef = doc(getDbInstance(), "global_data", "main");
 
 function buildTimestampId(date: Date): string {
   const pad2 = (v: number) => String(v).padStart(2, "0");
@@ -58,7 +58,7 @@ export const adminService = {
   },
 
   async listImagesInFolder(folder: string): Promise<StorageImageEntry[]> {
-    const folderRef = ref(storage, folder);
+    const folderRef = ref(getStorageInstance(), folder);
     const result = await listAll(folderRef);
 
     return Promise.all(
@@ -179,7 +179,7 @@ export const adminService = {
       payload.scheduledAt = Timestamp.fromDate(params.scheduledAt);
     }
 
-    await addDoc(collection(db, "admin_push_notifications"), payload);
+    await addDoc(collection(getDbInstance(), "admin_push_notifications"), payload);
   },
 
   async loadDeletableNews(): Promise<NewsItem[]> {
@@ -229,7 +229,7 @@ export const adminService = {
         ? "events"
         : "timedNews";
 
-    await runTransaction(db, async (tx) => {
+    await runTransaction(getDbInstance(), async (tx) => {
       const snap = await tx.get(mainDocRef);
       const data = snap.data();
 
@@ -269,8 +269,8 @@ export const adminService = {
   },
 
   async loadRegistrations(): Promise<RegistrationItem[]> {
-    const eventSnap = await getDocs(collection(db, "global_data", "main", "eventRegistration"));
-    const timedSnap = await getDocs(collection(db, "global_data", "main", "timedNewsRegistration"));
+    const eventSnap = await getDocs(collection(getDbInstance(), "global_data", "main", "eventRegistration"));
+    const timedSnap = await getDocs(collection(getDbInstance(), "global_data", "main", "timedNewsRegistration"));
 
     const items: RegistrationItem[] = [];
 
@@ -372,7 +372,7 @@ export const adminService = {
   },
 
   async fetchUsers(sedeFilter?: string): Promise<UserModel[]> {
-    let q = query(collection(db, "users"));
+    let q = query(collection(getDbInstance(), "users"));
     if (sedeFilter) {
       q = query(q, where("sede", "==", sedeFilter));
     }
@@ -383,7 +383,7 @@ export const adminService = {
   },
 
   async updateUser(uid: string, data: Partial<UserModel>): Promise<void> {
-    const ref = doc(db, "users", uid);
+    const ref = doc(getDbInstance(), "users", uid);
     const payload: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(data)) {
       if (value !== undefined) payload[key] = value;
@@ -393,10 +393,10 @@ export const adminService = {
 
   async fetchStats(): Promise<AdminStats> {
     const [usersSnap, mainSnap, eventRegSnap, timedRegSnap] = await Promise.all([
-      getDocs(collection(db, "users")),
+      getDocs(collection(getDbInstance(), "users")),
       getDoc(mainDocRef),
-      getDocs(collection(db, "global_data", "main", "eventRegistration")),
-      getDocs(collection(db, "global_data", "main", "timedNewsRegistration")),
+      getDocs(collection(getDbInstance(), "global_data", "main", "eventRegistration")),
+      getDocs(collection(getDbInstance(), "global_data", "main", "timedNewsRegistration")),
     ]);
 
     const users = usersSnap.docs.map((d) =>
@@ -426,7 +426,7 @@ export const adminService = {
   },
 
   async fetchPosters(): Promise<PosterItem[]> {
-    const snap = await getDocs(collection(db, "posters"));
+    const snap = await getDocs(collection(getDbInstance(), "posters"));
     return snap.docs
       .map((d) => {
         const data = d.data();
@@ -453,7 +453,7 @@ export const adminService = {
   async savePosterMetadata(
     item: Omit<PosterItem, "id" | "createdAt">
   ): Promise<string> {
-    const docRef = await addDoc(collection(db, "posters"), {
+    const docRef = await addDoc(collection(getDbInstance(), "posters"), {
       ...item,
       createdAt: Timestamp.now(),
     });
@@ -461,7 +461,7 @@ export const adminService = {
   },
 
   async fetchWheels(): Promise<WheelItem[]> {
-    const snap = await getDocs(collection(db, "wheels"));
+    const snap = await getDocs(collection(getDbInstance(), "wheels"));
     return snap.docs
       .map((d) => {
         const data = d.data();
@@ -497,7 +497,7 @@ export const adminService = {
     sourceRegistrationId: string;
     settings: WheelSettings;
   }): Promise<string> {
-    const docRef = await addDoc(collection(db, "wheels"), {
+    const docRef = await addDoc(collection(getDbInstance(), "wheels"), {
       title: params.title.trim(),
       location: params.location.trim(),
       participants: params.participants,
@@ -509,7 +509,7 @@ export const adminService = {
   },
 
   async fetchWheel(id: string): Promise<WheelItem | null> {
-    const snap = await getDoc(doc(db, "wheels", id));
+    const snap = await getDoc(doc(getDbInstance(), "wheels", id));
     if (!snap.exists()) return null;
     const data = snap.data()!;
     const rawSettings = data.settings ?? {};
@@ -536,7 +536,7 @@ export const adminService = {
   },
 
   async fetchWheelSpins(wheelId: string): Promise<WheelSpin[]> {
-    const snap = await getDocs(collection(db, "wheels", wheelId, "spins"));
+    const snap = await getDocs(collection(getDbInstance(), "wheels", wheelId, "spins"));
     return snap.docs
       .map((d) => {
         const data = d.data();
@@ -557,7 +557,7 @@ export const adminService = {
     wheelId: string,
     spin: Omit<WheelSpin, "id" | "timestamp">
   ): Promise<void> {
-    await addDoc(collection(db, "wheels", wheelId, "spins"), {
+    await addDoc(collection(getDbInstance(), "wheels", wheelId, "spins"), {
       spinIndex: spin.spinIndex,
       winnerName: spin.winnerName,
       timestamp: Timestamp.now(),

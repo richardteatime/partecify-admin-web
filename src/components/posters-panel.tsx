@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { adminService } from "@/services/admin-service";
 import { PosterItem } from "@/types/admin";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
-import { storage } from "@/lib/firebase";
+import { getStorageInstance } from "@/lib/firebase";
 import {
   Tabs,
   TabsList,
@@ -102,7 +102,7 @@ export default function PostersPanel() {
     const uploaded: Array<{ imageUrl: string; category: string; description: string }> = [];
     for (const asset of assets) {
       const path = `posters/assets/${Date.now()}_${asset.file.name}`;
-      const storageRef = ref(storage, path);
+      const storageRef = ref(getStorageInstance(), path);
       await uploadBytes(storageRef, asset.file);
       const url = await getDownloadURL(storageRef);
       uploaded.push({
@@ -178,7 +178,7 @@ export default function PostersPanel() {
     setMessage("");
 
     try {
-      const storageRef = ref(storage, `posters/${posterName.trim()}`);
+      const storageRef = ref(getStorageInstance(), `posters/${posterName.trim()}`);
       await uploadBytes(storageRef, previewBlob);
       const imageUrl = await getDownloadURL(storageRef);
 
