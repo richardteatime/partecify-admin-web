@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { adminService } from "@/services/admin-service";
 import { UserModel } from "@/types/user";
 
@@ -34,22 +37,51 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { toast } from "sonner";
+
+const userSchema = z.object({
+  fullName: z.string().min(1, "Il nome completo è obbligatorio."),
+  phone: z.string().optional(),
+  birthDate: z.string().optional(),
+  address: z.string().optional(),
+  sede: z.string().min(1, "Seleziona una sede."),
+  gamePoints: z.number().int().min(0, "I punti devono essere un numero intero positivo."),
+  isAdmin: z.boolean(),
+});
+
+type UserFormData = z.infer<typeof userSchema>;
 
 export default function UsersPanel() {
   const [users, setUsers] = useState<UserModel[]>([]);
   const [locations, setLocations] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState("");
   const [sedeFilter, setSedeFilter] = useState("");
   const [search, setSearch] = useState("");
   const [editingUser, setEditingUser] = useState<UserModel | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const [form, setForm] = useState<Partial<UserModel>>({});
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    reset,
+    formState: { errors },
+  } = useForm<UserFormData>({
+    resolver: zodResolver(userSchema),
+    defaultValues: {
+      fullName: "",
+      phone: "",
+      birthDate: "",
+      address: "",
+      sede: "",
+      gamePoints: 0,
+      isAdmin: false,
+    },
+  });
 
   async function load() {
     setLoading(true);
-    setMessage("");
     try {
       const [u, locs] = await Promise.all([
         adminService.fetchUsers(sedeFilter || undefined),
@@ -58,7 +90,7 @@ export default function UsersPanel() {
       setUsers(u);
       setLocations(locs);
     } catch {
-      setMessage("Errore durante il caricamento degli utenti.");
+      toast.error("Errore durante il caricamento degli utenti.");
     } finally {
       setLoading(false);
     }
@@ -80,25 +112,40 @@ export default function UsersPanel() {
 
   function openEdit(user: UserModel) {
     setEditingUser(user);
-    setForm({ ...user });
+    reset({
+      fullName: user.fullName,
+      phone: user.phone || "",
+      birthDate: user.birthDate || "",
+      address: user.address || "",
+      sede: user.sede || "",
+      gamePoints: user.gamePoints ?? 0,
+      isAdmin: user.isAdmin ?? false,
+    });
   }
 
   function closeEdit() {
     setEditingUser(null);
-    setForm({});
+    reset();
   }
 
-  async function handleSave() {
+  async function onSubmit(data: UserFormData) {
     if (!editingUser) return;
     setSaving(true);
-    setMessage("");
     try {
-      await adminService.updateUser(editingUser.uid, form);
-      setMessage("Utente aggiornato con successo.");
+      await adminService.updateUser(editingUser.uid, {
+        fullName: data.fullName,
+        phone: data.phone,
+        birthDate: data.birthDate,
+        address: data.address,
+        sede: data.sede,
+        gamePoints: data.gamePoints,
+        isAdmin: data.isAdmin,
+      });
+      toast.success("Utente aggiornato con successo.");
       closeEdit();
       await load();
     } catch {
-      setMessage("Errore durante il salvataggio.");
+      toast.error("Errore durante il salvataggio.");
     } finally {
       setSaving(false);
     }
@@ -141,12 +188,6 @@ export default function UsersPanel() {
               Aggiorna
             </Button>
           </div>
-
-          {message && (
-            <div className="rounded-lg border bg-muted px-4 py-3 text-sm text-muted-foreground">
-              {message}
-            </div>
-          )}
 
           {loading ? (
             <div className="space-y-2">
@@ -217,20 +258,22 @@ export default function UsersPanel() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
-              <Label>Nome completo</Label>
+              <Label htmlFor="fullName">Nome completo</Label>
               <Input
-                value={form.fullName ?? ""}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, fullName: e.target.value }))
-                }
+                id="fullName"
+                {...register("fullName")}
               />
+              {errors.fullName && (
+                <p className="text-sm text-destructive">{errors.fullName.message}</p>
+              )}
             </div>
 
             <div>
-              <Label>Email</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
+                id="email"
                 value={editingUser?.email ?? ""}
                 disabled
                 className="bg-muted"
@@ -239,46 +282,40 @@ export default function UsersPanel() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Telefono</Label>
+                <Label htmlFor="phone">Telefono</Label>
                 <Input
-                  value={form.phone ?? ""}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, phone: e.target.value }))
-                  }
+                  id="phone"
+                  {...register("phone")}
                 />
               </div>
 
               <div>
-                <Label>Data di nascita</Label>
+                <Label htmlFor="birthDate">Data di nascita</Label>
                 <Input
-                  value={form.birthDate ?? ""}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, birthDate: e.target.value }))
-                  }
+                  id="birthDate"
+                  {...register("birthDate")}
                 />
               </div>
             </div>
 
             <div>
-              <Label>Indirizzo</Label>
+              <Label htmlFor="address">Indirizzo</Label>
               <Input
-                value={form.address ?? ""}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, address: e.target.value }))
-                }
+                id="address"
+                {...register("address")}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Sede</Label>
+                <Label htmlFor="sede">Sede</Label>
                 <Select
-                  value={form.sede ?? ""}
+                  value={watch("sede") || ""}
                   onValueChange={(value) =>
-                    setForm((f) => ({ ...f, sede: value ?? "" }))
+                    setValue("sede", value ?? "", { shouldValidate: true })
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="sede">
                     <SelectValue placeholder="Seleziona" />
                   </SelectTrigger>
                   <SelectContent>
@@ -289,47 +326,45 @@ export default function UsersPanel() {
                     ))}
                   </SelectContent>
                 </Select>
+                {errors.sede && (
+                  <p className="text-sm text-destructive">{errors.sede.message}</p>
+                )}
               </div>
 
               <div>
-                <Label>Punti</Label>
+                <Label htmlFor="gamePoints">Punti</Label>
                 <Input
+                  id="gamePoints"
                   type="number"
-                  value={form.gamePoints ?? 0}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      gamePoints: Number.parseInt(e.target.value, 10) || 0,
-                    }))
-                  }
+                  {...register("gamePoints", { valueAsNumber: true })}
                 />
+                {errors.gamePoints && (
+                  <p className="text-sm text-destructive">{errors.gamePoints.message}</p>
+                )}
               </div>
             </div>
 
             <label className="flex items-center gap-3 rounded-lg border px-4 py-3">
               <input
                 type="checkbox"
-                checked={form.isAdmin ?? false}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, isAdmin: e.target.checked }))
-                }
+                {...register("isAdmin")}
               />
               <span className="text-sm font-medium">Amministratore</span>
             </label>
-          </div>
 
-          <DialogFooter className="gap-2">
-            <Button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex-1"
-            >
-              {saving ? "Salvataggio..." : "Salva modifiche"}
-            </Button>
-            <Button variant="outline" onClick={closeEdit}>
-              Annulla
-            </Button>
-          </DialogFooter>
+            <DialogFooter className="gap-2">
+              <Button
+                type="submit"
+                disabled={saving}
+                className="flex-1"
+              >
+                {saving ? "Salvataggio..." : "Salva modifiche"}
+              </Button>
+              <Button variant="outline" onClick={closeEdit}>
+                Annulla
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

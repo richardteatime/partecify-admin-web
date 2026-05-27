@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { adminService } from "@/services/admin-service";
 import { PosterItem } from "@/types/admin";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
@@ -31,16 +34,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
+
+const posterSchema = z.object({
+  titolo: z.string().min(1, "Il titolo è obbligatorio."),
+  sottotitolo: z.string().optional(),
+  dataEvento: z.string().optional(),
+  oraEvento: z.string().optional(),
+  tema: z.string().optional(),
+  aspectRatio: z.string().min(1, "Seleziona un aspect ratio."),
+  sede: z.string().min(1, "Seleziona una sede."),
+});
+
+type PosterFormData = z.infer<typeof posterSchema>;
 
 export default function PostersPanel() {
-  // Form fields
-  const [titolo, setTitolo] = useState("");
-  const [sottotitolo, setSottotitolo] = useState("");
-  const [dataEvento, setDataEvento] = useState("");
-  const [oraEvento, setOraEvento] = useState("");
-  const [tema, setTema] = useState("");
-  const [aspectRatio, setAspectRatio] = useState("16:9");
-  const [sede, setSede] = useState("");
   const [locations, setLocations] = useState<string[]>([]);
   const [assets, setAssets] = useState<
     Array<{ file: File; category: string; description: string }>
@@ -52,14 +60,43 @@ export default function PostersPanel() {
   const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
   const [posterName, setPosterName] = useState("");
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
 
   // Gallery state
   const [posters, setPosters] = useState<PosterItem[]>([]);
   const [loadingPosters, setLoadingPosters] = useState(true);
 
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    reset,
+    formState: { errors },
+  } = useForm<PosterFormData>({
+    resolver: zodResolver(posterSchema),
+    defaultValues: {
+      titolo: "",
+      sottotitolo: "",
+      dataEvento: "",
+      oraEvento: "",
+      tema: "",
+      aspectRatio: "16:9",
+      sede: "",
+    },
+  });
+
+  const titolo = watch("titolo");
+  const sottotitolo = watch("sottotitolo");
+  const dataEvento = watch("dataEvento");
+  const oraEvento = watch("oraEvento");
+  const tema = watch("tema");
+  const aspectRatio = watch("aspectRatio");
+  const sede = watch("sede");
+
   useEffect(() => {
-    adminService.fetchLocations().then(setLocations);
+    adminService.fetchLocations()
+      .then(setLocations)
+      .catch(() => toast.error("Errore caricamento sedi."));
     loadPosters();
   }, []);
 
@@ -70,7 +107,7 @@ export default function PostersPanel() {
       setPosters(data);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Errore sconosciuto";
-      setMessage(`Errore galleria: ${msg}`);
+      toast.error(`Errore galleria: ${msg}`);
       console.error("[loadPosters]", err);
     } finally {
       setLoadingPosters(false);
@@ -114,14 +151,8 @@ export default function PostersPanel() {
     return uploaded;
   }
 
-  async function handleGenerate(e: React.FormEvent) {
-    e.preventDefault();
-    if (!titolo || !sede) {
-      setMessage("Titolo e sede sono obbligatori.");
-      return;
-    }
+  async function onSubmit(data: PosterFormData) {
     setGenerating(true);
-    setMessage("");
     setPreviewUrl(null);
     setPreviewBlob(null);
 
@@ -132,7 +163,7 @@ export default function PostersPanel() {
         description: string;
       }> = [];
       if (assets.length > 0) {
-        setMessage("Caricamento immagini di riferimento...");
+        toast.info("Caricamento immagini di riferimento...");
         uploadedAssets = await uploadAssets();
       }
 
@@ -140,30 +171,30 @@ export default function PostersPanel() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          titolo,
-          sottotitolo: sottotitolo || undefined,
-          dataEvento: dataEvento || undefined,
-          oraEvento: oraEvento || undefined,
-          tema: tema || undefined,
-          aspectRatio,
-          sede,
+          titolo: data.titolo,
+          sottotitolo: data.sottotitolo || undefined,
+          dataEvento: data.dataEvento || undefined,
+          oraEvento: data.oraEvento || undefined,
+          tema: data.tema || undefined,
+          aspectRatio: data.aspectRatio,
+          sede: data.sede,
           assets: uploadedAssets.length ? uploadedAssets : undefined,
         }),
       });
 
       if (!resp.ok) {
-        const data = await resp.json().catch(() => ({}));
-        throw new Error(data.error || "Errore durante la generazione.");
+        const body = await resp.json().catch(() => ({}));
+        throw new Error(body.error || "Errore durante la generazione.");
       }
 
       const blob = await resp.blob();
       setPreviewBlob(blob);
       setPreviewUrl(URL.createObjectURL(blob));
-      const suggestedName = `locandina_${titolo.replace(/\s+/g, "_").toLowerCase()}_${Date.now()}.png`;
+      const suggestedName = `locandina_${data.titolo.replace(/\s+/g, "_").toLowerCase()}_${Date.now()}.png`;
       setPosterName(suggestedName);
-      setMessage("Locandina generata! Ora puoi salvarla su Firebase.");
+      toast.success("Locandina generata! Ora puoi salvarla su Firebase.");
     } catch (err: unknown) {
-      setMessage(err instanceof Error ? err.message : "Errore durante la generazione.");
+      toast.error(err instanceof Error ? err.message : "Errore durante la generazione.");
     } finally {
       setGenerating(false);
     }
@@ -171,11 +202,10 @@ export default function PostersPanel() {
 
   async function handleSave() {
     if (!previewBlob || !posterName.trim()) {
-      setMessage("Nessuna locandina da salvare o nome mancante.");
+      toast.error("Nessuna locandina da salvare o nome mancante.");
       return;
     }
     setSaving(true);
-    setMessage("");
 
     try {
       const storageRef = ref(getStorageInstance(), `posters/${posterName.trim()}`);
@@ -194,19 +224,23 @@ export default function PostersPanel() {
         storagePath: `posters/${posterName.trim()}`,
       });
 
-      setMessage("Locandina salvata con successo su Firebase.");
+      toast.success("Locandina salvata con successo su Firebase.");
       setPreviewUrl(null);
       setPreviewBlob(null);
       setPosterName("");
-      setTitolo("");
-      setSottotitolo("");
-      setDataEvento("");
-      setOraEvento("");
-      setTema("");
+      reset({
+        titolo: "",
+        sottotitolo: "",
+        dataEvento: "",
+        oraEvento: "",
+        tema: "",
+        aspectRatio: "16:9",
+        sede: "",
+      });
       setAssets([]);
       await loadPosters();
     } catch (err: unknown) {
-      setMessage(err instanceof Error ? err.message : "Errore durante il salvataggio.");
+      toast.error(err instanceof Error ? err.message : "Errore durante il salvataggio.");
     } finally {
       setSaving(false);
     }
@@ -242,12 +276,6 @@ export default function PostersPanel() {
           <TabsTrigger value="gallery">Galleria</TabsTrigger>
         </TabsList>
 
-        {message && (
-          <div className="mt-4 rounded-xl bg-neutral-100 px-4 py-3 text-sm text-neutral-700">
-            {message}
-          </div>
-        )}
-
         <TabsContent value="generate" className="mt-4 space-y-6">
           <Card>
             <CardHeader>
@@ -257,25 +285,26 @@ export default function PostersPanel() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form id="poster-form" onSubmit={handleGenerate} className="space-y-4">
+              <form id="poster-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="titolo">Titolo evento *</Label>
                     <Input
                       id="titolo"
-                      value={titolo}
-                      onChange={(e) => setTitolo(e.target.value)}
                       placeholder="Es. Serata Live"
+                      {...register("titolo")}
                     />
+                    {errors.titolo && (
+                      <p className="text-sm text-destructive">{errors.titolo.message}</p>
+                    )}
                   </div>
 
                   <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="sottotitolo">Sottotitolo</Label>
                     <Input
                       id="sottotitolo"
-                      value={sottotitolo}
-                      onChange={(e) => setSottotitolo(e.target.value)}
                       placeholder="Es. Special Guest DJ Marco"
+                      {...register("sottotitolo")}
                     />
                   </div>
 
@@ -284,8 +313,7 @@ export default function PostersPanel() {
                     <Input
                       id="dataEvento"
                       type="date"
-                      value={dataEvento}
-                      onChange={(e) => setDataEvento(e.target.value)}
+                      {...register("dataEvento")}
                     />
                   </div>
 
@@ -294,8 +322,7 @@ export default function PostersPanel() {
                     <Input
                       id="oraEvento"
                       type="time"
-                      value={oraEvento}
-                      onChange={(e) => setOraEvento(e.target.value)}
+                      {...register("oraEvento")}
                     />
                   </div>
 
@@ -303,15 +330,14 @@ export default function PostersPanel() {
                     <Label htmlFor="tema">Tema / Descrizione</Label>
                     <Textarea
                       id="tema"
-                      value={tema}
-                      onChange={(e) => setTema(e.target.value)}
                       placeholder="Descrivi l'atmosfera o il tema dell'evento..."
+                      {...register("tema")}
                     />
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="aspectRatio">Aspect ratio</Label>
-                    <Select value={aspectRatio} onValueChange={(v) => setAspectRatio(v ?? "")}>
+                    <Select value={aspectRatio} onValueChange={(v) => setValue("aspectRatio", v ?? "", { shouldValidate: true })}>
                       <SelectTrigger id="aspectRatio">
                         <SelectValue placeholder="Seleziona aspect ratio" />
                       </SelectTrigger>
@@ -323,11 +349,14 @@ export default function PostersPanel() {
                         ))}
                       </SelectContent>
                     </Select>
+                    {errors.aspectRatio && (
+                      <p className="text-sm text-destructive">{errors.aspectRatio.message}</p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="sede">Sede *</Label>
-                    <Select value={sede} onValueChange={(v) => setSede(v ?? "")}>
+                    <Select value={sede} onValueChange={(v) => setValue("sede", v ?? "", { shouldValidate: true })}>
                       <SelectTrigger id="sede">
                         <SelectValue placeholder="Seleziona una sede" />
                       </SelectTrigger>
@@ -339,6 +368,9 @@ export default function PostersPanel() {
                         ))}
                       </SelectContent>
                     </Select>
+                    {errors.sede && (
+                      <p className="text-sm text-destructive">{errors.sede.message}</p>
+                    )}
                   </div>
                 </div>
 
@@ -473,12 +505,18 @@ export default function PostersPanel() {
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {posters.map((p) => (
                     <Card key={p.id} className="overflow-hidden">
-                      <img
-                        src={p.imageUrl}
-                        alt={p.title}
-                        className="aspect-video w-full object-cover"
-                        loading="lazy"
-                      />
+                      {p.imageUrl ? (
+                        <img
+                          src={p.imageUrl}
+                          alt={p.title}
+                          className="aspect-video w-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="flex aspect-video w-full items-center justify-center bg-muted text-sm text-muted-foreground">
+                          Immagine non disponibile
+                        </div>
+                      )}
                       <CardContent className="space-y-1 pt-4">
                         <CardTitle className="text-sm">{p.title}</CardTitle>
                         <CardDescription>

@@ -257,6 +257,11 @@ export const adminService = {
     today: Date,
     isQrForDate: (raw: string, date: Date) => boolean
   ): Promise<string[]> {
+    const all = await this.loadAllQrCodes();
+    return all.filter((raw: string) => isQrForDate(raw, today));
+  },
+
+  async loadAllQrCodes(): Promise<string[]> {
     const snap = await getDoc(mainDocRef);
     const data = snap.data();
 
@@ -264,7 +269,6 @@ export const adminService = {
 
     return data.qrCodes
       .filter((v: unknown) => typeof v === "string")
-      .filter((raw: string) => isQrForDate(raw, today))
       .sort((a: string, b: string) => b.localeCompare(a));
   },
 

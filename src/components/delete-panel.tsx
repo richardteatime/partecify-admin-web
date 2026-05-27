@@ -29,6 +29,7 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 
 type DeleteType = "news" | "event" | "timedNews";
 
@@ -36,19 +37,17 @@ export default function DeletePanel() {
   const [type, setType] = useState<DeleteType>("news");
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<Array<NewsItem | EventItem | TimedNewsItem>>([]);
-  const [message, setMessage] = useState("");
   const [itemToDelete, setItemToDelete] = useState<number | null>(null);
 
   async function loadItems() {
     setLoading(true);
-    setMessage("");
 
     try {
       if (type === "news") setItems(await adminService.loadDeletableNews());
       if (type === "event") setItems(await adminService.loadDeletableEvents());
       if (type === "timedNews") setItems(await adminService.loadDeletableTimedNews());
     } catch {
-      setMessage("Errore durante il caricamento degli elementi.");
+      toast.error("Errore durante il caricamento degli elementi.");
     } finally {
       setLoading(false);
     }
@@ -67,9 +66,9 @@ export default function DeletePanel() {
         index: itemToDelete,
       });
       await loadItems();
-      setMessage("Elemento eliminato correttamente.");
+      toast.success("Elemento eliminato correttamente.");
     } catch {
-      setMessage("Errore durante l'eliminazione.");
+      toast.error("Errore durante l'eliminazione.");
     } finally {
       setItemToDelete(null);
     }
@@ -103,12 +102,6 @@ export default function DeletePanel() {
             Aggiorna
           </Button>
         </div>
-
-        {message && (
-          <div className="rounded-lg bg-muted px-4 py-3 text-sm text-muted-foreground">
-            {message}
-          </div>
-        )}
 
         {loading ? (
           <div className="space-y-3">

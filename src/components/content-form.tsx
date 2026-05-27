@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { adminService } from "@/services/admin-service";
 import { StorageImageEntry } from "@/types/admin";
 import {
@@ -30,28 +33,95 @@ import {
   TabsTrigger,
   TabsContent,
 } from "@/components/ui/tabs";
+import { toast } from "sonner";
 
 type ContentType = "news" | "event" | "timedNews" | "notify";
 
+const baseSchema = z.object({
+  title: z.string().min(1, "Il titolo è obbligatorio."),
+  description: z.string().min(1, "La descrizione è obbligatoria."),
+});
+
+const newsSchema = baseSchema.extend({
+  newsLink: z.string().optional(),
+  selectedImageUrl: z.string().optional(),
+  notifyOnSave: z.boolean(),
+});
+
+const eventSchema = baseSchema.extend({
+  eventOnlineUrl: z.string().optional(),
+  selectedImageUrl: z.string().optional(),
+  selectedLocation: z.string().min(1, "Seleziona una sede."),
+  eventDateTime: z.string().min(1, "Inserisci data e ora dell'evento."),
+  notifyOnSave: z.boolean(),
+});
+
+const timedNewsSchema = baseSchema.extend({
+  selectedImageUrl: z.string().optional(),
+  selectedLocation: z.string().min(1, "Seleziona una sede."),
+  startAt: z.string().min(1, "Inserisci data e ora di inizio."),
+  endAt: z.string().min(1, "Inserisci data e ora di fine."),
+  notifyOnSave: z.boolean(),
+});
+
+const notifySchema = baseSchema;
+
+type NewsFormData = z.infer<typeof newsSchema>;
+type EventFormData = z.infer<typeof eventSchema>;
+type TimedNewsFormData = z.infer<typeof timedNewsSchema>;
+type NotifyFormData = z.infer<typeof notifySchema>;
+
+type FormData = NewsFormData | EventFormData | TimedNewsFormData | NotifyFormData;
+
+function getSchema(type: ContentType) {
+  switch (type) {
+    case "news":
+      return newsSchema;
+    case "event":
+      return eventSchema;
+    case "timedNews":
+      return timedNewsSchema;
+    case "notify":
+      return notifySchema;
+  }
+}
+
+function getDefaultValues(type: ContentType): FormData {
+  const base = { title: "", description: "" };
+  switch (type) {
+    case "news":
+      return { ...base, newsLink: "", selectedImageUrl: "", notifyOnSave: false };
+    case "event":
+      return { ...base, eventOnlineUrl: "", selectedImageUrl: "", selectedLocation: "", eventDateTime: "", notifyOnSave: false };
+    case "timedNews":
+      return { ...base, selectedImageUrl: "", selectedLocation: "", startAt: "", endAt: "", notifyOnSave: false };
+    case "notify":
+      return base;
+  }
+}
+
 export default function ContentForm() {
   const [selectedType, setSelectedType] = useState<ContentType>("news");
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [newsLink, setNewsLink] = useState("");
-  const [eventOnlineUrl, setEventOnlineUrl] = useState("");
-  const [selectedLocation, setSelectedLocation] = useState("");
-  const [startAt, setStartAt] = useState("");
-  const [endAt, setEndAt] = useState("");
-  const [eventDateTime, setEventDateTime] = useState("");
-  const [notifyOnSave, setNotifyOnSave] = useState(false);
-
   const [locations, setLocations] = useState<string[]>([]);
   const [images, setImages] = useState<StorageImageEntry[]>([]);
-  const [selectedImageUrl, setSelectedImageUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState("");
   const [loadingLocations, setLoadingLocations] = useState(true);
   const [loadingImages, setLoadingImages] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    reset,
+    formState: { errors },
+  } = useForm<FormData>({
+    resolver: zodResolver(getSchema(selectedType)),
+    defaultValues: getDefaultValues(selectedType),
+  });
+
+  const selectedImageUrl = watch("selectedImageUrl" as const) as string | undefined;
+  const notifyOnSave = watch("notifyOnSave" as const) as boolean | undefined;
 
   useEffect(() => {
     setLoadingLocations(true);
@@ -60,6 +130,10 @@ export default function ContentForm() {
       .then(setLocations)
       .finally(() => setLoadingLocations(false));
   }, []);
+
+  useEffect(() => {
+    reset(getDefaultValues(selectedType));
+  }, [selectedType, reset]);
 
   async function loadImages() {
     const folder = selectedType === "news" ? "News" : "Events";
@@ -72,93 +146,95 @@ export default function ContentForm() {
     }
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function onSubmit(data: FormData) {
     setSubmitting(true);
-    setMessage("");
 
     try {
       if (selectedType === "news") {
+        const d = data as NewsFormData;
         await adminService.saveNews({
-          title,
-          description,
-          imageUrl: selectedImageUrl,
-          linkUrl: newsLink,
+          title: d.title,
+          description: d.description,
+          imageUrl: d.selectedImageUrl || "",
+          linkUrl: d.newsLink,
         });
 
-        if (notifyOnSave) {
+        if (d.notifyOnSave) {
           await adminService.queueNotification({
-            title,
-            body: description,
+            title: d.title,
+            body: d.description,
             topic: "all",
             data: {
               type: "news",
-              title,
-              imageUrl: selectedImageUrl,
-              linkUrl: newsLink,
+              title: d.title,
+              imageUrl: d.selectedImageUrl,
+              linkUrl: d.newsLink,
             },
           });
         }
       }
 
       if (selectedType === "event") {
+        const d = data as EventFormData;
         await adminService.saveEvent({
-          title,
-          description,
-          imageUrl: selectedImageUrl,
-          location: selectedLocation,
-          eventDateTime: new Date(eventDateTime),
-          onlineEventUrl: eventOnlineUrl,
+          title: d.title,
+          description: d.description,
+          imageUrl: d.selectedImageUrl || "",
+          location: d.selectedLocation,
+          eventDateTime: new Date(d.eventDateTime),
+          onlineEventUrl: d.eventOnlineUrl,
         });
 
-        if (notifyOnSave) {
+        if (d.notifyOnSave) {
           await adminService.queueNotification({
-            title,
-            body: `${selectedLocation} · ${eventDateTime}`,
+            title: d.title,
+            body: `${d.selectedLocation} · ${d.eventDateTime}`,
             topic: "all",
             data: {
               type: "event",
-              title,
-              location: selectedLocation,
-              dateTime: new Date(eventDateTime).toISOString(),
-              imageUrl: selectedImageUrl,
-              onlineEventUrl: eventOnlineUrl,
+              title: d.title,
+              location: d.selectedLocation,
+              dateTime: new Date(d.eventDateTime).toISOString(),
+              imageUrl: d.selectedImageUrl,
+              onlineEventUrl: d.eventOnlineUrl,
             },
           });
         }
       }
 
       if (selectedType === "timedNews") {
+        const d = data as TimedNewsFormData;
         await adminService.saveTimedNews({
-          title,
-          description,
-          imageUrl: selectedImageUrl,
-          location: selectedLocation,
-          startAt: new Date(startAt),
-          endAt: new Date(endAt),
+          title: d.title,
+          description: d.description,
+          imageUrl: d.selectedImageUrl || "",
+          location: d.selectedLocation,
+          startAt: new Date(d.startAt),
+          endAt: new Date(d.endAt),
         });
 
-        if (notifyOnSave) {
+        if (d.notifyOnSave) {
           await adminService.queueNotification({
-            title,
-            body: `${selectedLocation} · ${startAt} → ${endAt}`,
+            title: d.title,
+            body: `${d.selectedLocation} · ${d.startAt} → ${d.endAt}`,
             topic: "all",
             data: {
               type: "timedNews",
-              title,
-              location: selectedLocation,
-              startAt: new Date(startAt).toISOString(),
-              endAt: new Date(endAt).toISOString(),
-              imageUrl: selectedImageUrl,
+              title: d.title,
+              location: d.selectedLocation,
+              startAt: new Date(d.startAt).toISOString(),
+              endAt: new Date(d.endAt).toISOString(),
+              imageUrl: d.selectedImageUrl,
             },
           });
         }
       }
 
       if (selectedType === "notify") {
+        const d = data as NotifyFormData;
         await adminService.queueNotification({
-          title,
-          body: description,
+          title: d.title,
+          body: d.description,
           topic: "all",
           data: {
             type: "custom",
@@ -166,19 +242,10 @@ export default function ContentForm() {
         });
       }
 
-      setMessage("Operazione completata con successo.");
-      setTitle("");
-      setDescription("");
-      setNewsLink("");
-      setEventOnlineUrl("");
-      setSelectedLocation("");
-      setStartAt("");
-      setEndAt("");
-      setEventDateTime("");
-      setSelectedImageUrl("");
-      setNotifyOnSave(false);
+      toast.success("Operazione completata con successo.");
+      reset(getDefaultValues(selectedType));
     } catch (err) {
-      setMessage(
+      toast.error(
         err instanceof Error ? err.message : "Errore durante il salvataggio."
       );
     } finally {
@@ -189,22 +256,28 @@ export default function ContentForm() {
   const commonFields = (
     <>
       <div className="space-y-2">
-        <Label>Titolo</Label>
+        <Label htmlFor="title">Titolo</Label>
         <Input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          id="title"
           placeholder="Inserisci il titolo"
+          {...register("title")}
         />
+        {errors.title && (
+          <p className="text-sm text-destructive">{errors.title.message}</p>
+        )}
       </div>
 
       <div className="space-y-2">
-        <Label>Descrizione</Label>
+        <Label htmlFor="description">Descrizione</Label>
         <Textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          id="description"
           placeholder="Inserisci la descrizione"
           className="min-h-28"
+          {...register("description")}
         />
+        {errors.description && (
+          <p className="text-sm text-destructive">{errors.description.message}</p>
+        )}
       </div>
     </>
   );
@@ -223,8 +296,8 @@ export default function ContentForm() {
         </Button>
 
         <Select
-          value={selectedImageUrl}
-          onValueChange={(v) => setSelectedImageUrl(v ?? "")}
+          value={selectedImageUrl || ""}
+          onValueChange={(v) => setValue("selectedImageUrl" as const, v ?? "")}
         >
           <SelectTrigger className="flex-1">
             <SelectValue placeholder="Seleziona un'immagine" />
@@ -246,15 +319,15 @@ export default function ContentForm() {
 
   const locationField = (
     <div className="space-y-2">
-      <Label>Sede</Label>
+      <Label htmlFor="selectedLocation">Sede</Label>
       {loadingLocations ? (
         <Skeleton className="h-8 w-full" />
       ) : (
         <Select
-          value={selectedLocation}
-          onValueChange={(v) => setSelectedLocation(v ?? "")}
+          value={(watch("selectedLocation" as const) as string | undefined) || ""}
+          onValueChange={(v) => setValue("selectedLocation" as const, v ?? "", { shouldValidate: true })}
         >
-          <SelectTrigger>
+          <SelectTrigger id="selectedLocation">
             <SelectValue placeholder="Seleziona una sede" />
           </SelectTrigger>
           <SelectContent>
@@ -266,14 +339,19 @@ export default function ContentForm() {
           </SelectContent>
         </Select>
       )}
+      {(errors as Record<string, { message?: string }>).selectedLocation && (
+        <p className="text-sm text-destructive">{
+          (errors as Record<string, { message?: string }>).selectedLocation?.message
+        }</p>
+      )}
     </div>
   );
 
   const notifySwitch = (
     <div className="flex items-center gap-3 rounded-lg border p-4">
       <Switch
-        checked={notifyOnSave}
-        onCheckedChange={setNotifyOnSave}
+        checked={notifyOnSave || false}
+        onCheckedChange={(v) => setValue("notifyOnSave" as const, v)}
         id="notify-on-save"
       />
       <Label htmlFor="notify-on-save" className="mb-0">
@@ -304,15 +382,15 @@ export default function ContentForm() {
             <TabsTrigger value="notify">Notifica</TabsTrigger>
           </TabsList>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <TabsContent value="news">
               {commonFields}
               <div className="space-y-2">
-                <Label>Link opzionale</Label>
+                <Label htmlFor="newsLink">Link opzionale</Label>
                 <Input
-                  value={newsLink}
-                  onChange={(e) => setNewsLink(e.target.value)}
+                  id="newsLink"
                   placeholder="https://..."
+                  {...register("newsLink")}
                 />
               </div>
               {imageField}
@@ -322,22 +400,27 @@ export default function ContentForm() {
             <TabsContent value="event">
               {commonFields}
               <div className="space-y-2">
-                <Label>URL evento online opzionale</Label>
+                <Label htmlFor="eventOnlineUrl">URL evento online opzionale</Label>
                 <Input
-                  value={eventOnlineUrl}
-                  onChange={(e) => setEventOnlineUrl(e.target.value)}
+                  id="eventOnlineUrl"
                   placeholder="https://..."
+                  {...register("eventOnlineUrl")}
                 />
               </div>
               {imageField}
               {locationField}
               <div className="space-y-2">
-                <Label>Data e ora evento</Label>
+                <Label htmlFor="eventDateTime">Data e ora evento</Label>
                 <Input
+                  id="eventDateTime"
                   type="datetime-local"
-                  value={eventDateTime}
-                  onChange={(e) => setEventDateTime(e.target.value)}
+                  {...register("eventDateTime")}
                 />
+                {(errors as Record<string, { message?: string }>).eventDateTime && (
+                  <p className="text-sm text-destructive">{
+                    (errors as Record<string, { message?: string }>).eventDateTime?.message
+                  }</p>
+                )}
               </div>
               {notifySwitch}
             </TabsContent>
@@ -348,20 +431,30 @@ export default function ContentForm() {
               {locationField}
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>Data e ora inizio</Label>
+                  <Label htmlFor="startAt">Data e ora inizio</Label>
                   <Input
+                    id="startAt"
                     type="datetime-local"
-                    value={startAt}
-                    onChange={(e) => setStartAt(e.target.value)}
+                    {...register("startAt")}
                   />
+                  {(errors as Record<string, { message?: string }>).startAt && (
+                    <p className="text-sm text-destructive">{
+                      (errors as Record<string, { message?: string }>).startAt?.message
+                    }</p>
+                  )}
                 </div>
                 <div className="space-y-2">
-                  <Label>Data e ora fine</Label>
+                  <Label htmlFor="endAt">Data e ora fine</Label>
                   <Input
+                    id="endAt"
                     type="datetime-local"
-                    value={endAt}
-                    onChange={(e) => setEndAt(e.target.value)}
+                    {...register("endAt")}
                   />
+                  {(errors as Record<string, { message?: string }>).endAt && (
+                    <p className="text-sm text-destructive">{
+                      (errors as Record<string, { message?: string }>).endAt?.message
+                    }</p>
+                  )}
                 </div>
               </div>
               {notifySwitch}
@@ -372,12 +465,6 @@ export default function ContentForm() {
             </TabsContent>
 
             <Separator />
-
-            {message && (
-              <div className="rounded-lg bg-muted px-4 py-3 text-sm text-muted-foreground">
-                {message}
-              </div>
-            )}
 
             <Button type="submit" disabled={submitting}>
               {submitting ? "Salvataggio in corso..." : "Salva"}

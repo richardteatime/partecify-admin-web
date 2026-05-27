@@ -1,4 +1,4 @@
-import { signInWithEmailAndPassword, signOut, User } from "firebase/auth";
+import { signInWithEmailAndPassword, signOut, User, sendPasswordResetEmail } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { getAuthInstance, getDbInstance } from "@/lib/firebase";
 import { mapUser, UserModel } from "@/types/user";
@@ -33,4 +33,8 @@ export async function requireAdminUser(uid: string): Promise<UserModel> {
   }
 
   return profile;
+}
+
+export async function sendPasswordReset(email: string): Promise<void> {
+  await sendPasswordResetEmail(getAuthInstance(), email);
 }

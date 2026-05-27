@@ -15,21 +15,20 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
 export default function RegistrationsPanel() {
   const [items, setItems] = useState<RegistrationItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState("");
 
   async function load() {
     setLoading(true);
-    setMessage("");
 
     try {
       const data = await adminService.loadRegistrations();
       setItems(data);
     } catch {
-      setMessage("Errore durante il caricamento delle registrazioni.");
+      toast.error("Errore durante il caricamento delle registrazioni.");
     } finally {
       setLoading(false);
     }
@@ -49,7 +48,7 @@ export default function RegistrationsPanel() {
       a.click();
       window.URL.revokeObjectURL(url);
     } catch {
-      setMessage("Errore durante l'esportazione del CSV.");
+      toast.error("Errore durante l'esportazione del CSV.");
     }
   }
 
@@ -67,11 +66,6 @@ export default function RegistrationsPanel() {
         </Button>
       </CardHeader>
       <CardContent className="space-y-4">
-        {message && (
-          <div className="rounded-lg border bg-muted px-4 py-3 text-sm text-muted-foreground">
-            {message}
-          </div>
-        )}
 
         {loading ? (
           <div className="space-y-3">

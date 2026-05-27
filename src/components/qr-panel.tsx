@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { adminService } from "@/services/admin-service";
-import { buildQrString, decodeQrMeta, isQrForDate } from "@/lib/qr";
+import { buildQrString, decodeQrMeta } from "@/lib/qr";
 import {
   Card,
   CardHeader,
@@ -21,6 +24,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { toast } from "sonner";
+
+const qrSchema = z.object({
+  location: z.string().min(1, "Seleziona una sede."),
+  points: z.string().regex(/^-?\d+$/, "Inserisci un numero intero valido."),
+});
+
+type QrFormData = z.infer<typeof qrSchema>;
 
 function QrCard({ raw }: { raw: string }) {
   const [dataUrl, setDataUrl] = useState<string | null>(null);
@@ -88,13 +99,24 @@ function QrCard({ raw }: { raw: string }) {
 
 export default function QrPanel() {
   const [locations, setLocations] = useState<string[]>([]);
-  const [selectedLocation, setSelectedLocation] = useState("");
-  const [points, setPoints] = useState("");
-  const [todayCodes, setTodayCodes] = useState<string[]>([]);
-  const [message, setMessage] = useState("");
+  const [qrCodes, setQrCodes] = useState<string[]>([]);
   const [creating, setCreating] = useState(false);
   const [loadingLocations, setLoadingLocations] = useState(true);
   const [loadingCodes, setLoadingCodes] = useState(true);
+
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    reset,
+    formState: { errors },
+  } = useForm<QrFormData>({
+    resolver: zodResolver(qrSchema),
+    defaultValues: { location: "", points: "" },
+  });
+
+  const selectedLocation = watch("location");
 
   useEffect(() => {
     setLoadingLocations(true);
@@ -102,48 +124,41 @@ export default function QrPanel() {
       .fetchLocations()
       .then(setLocations)
       .finally(() => setLoadingLocations(false));
-    refreshTodayCodes();
+    refreshQrCodes();
   }, []);
 
-  async function refreshTodayCodes() {
+  async function refreshQrCodes() {
     setLoadingCodes(true);
     try {
-      const data = await adminService.loadTodayQrCodes(new Date(), isQrForDate);
-      setTodayCodes(data);
+      const data = await adminService.loadAllQrCodes();
+      setQrCodes(data);
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Errore caricamento QR."
+      );
     } finally {
       setLoadingCodes(false);
     }
   }
 
-  async function createQr() {
-    if (!selectedLocation || !points.trim()) {
-      setMessage("Compila sede e punti.");
-      return;
-    }
-
-    const value = Number.parseInt(points, 10);
-    if (Number.isNaN(value)) {
-      setMessage("Inserisci un valore numerico valido.");
-      return;
-    }
+  async function onSubmit(data: QrFormData) {
+    const value = Number.parseInt(data.points, 10);
 
     setCreating(true);
-    setMessage("");
-
     try {
       const rawQr = buildQrString({
         date: new Date(),
-        location: selectedLocation,
+        location: data.location,
         points: value,
       });
 
       await adminService.createQrCode(rawQr);
-      await refreshTodayCodes();
+      await refreshQrCodes();
 
-      setPoints("");
-      setMessage(`Codice QR creato correttamente: ${rawQr}`);
+      reset({ location: "", points: "" });
+      toast.success(`Codice QR creato correttamente: ${rawQr}`);
     } catch {
-      setMessage("Errore durante la creazione del codice QR.");
+      toast.error("Errore durante la creazione del codice QR.");
     } finally {
       setCreating(false);
     }
@@ -156,56 +171,58 @@ export default function QrPanel() {
           <CardTitle>Creazione codici QR</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Sede</Label>
-              {loadingLocations ? (
-                <Skeleton className="h-8 w-full" />
-              ) : (
-                <Select
-                  value={selectedLocation}
-                  onValueChange={(v) => setSelectedLocation(v ?? "")}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona una sede" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {locations.map((loc) => (
-                      <SelectItem key={loc} value={loc}>
-                        {loc}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="location">Sede</Label>
+                {loadingLocations ? (
+                  <Skeleton className="h-8 w-full" />
+                ) : (
+                  <Select
+                    value={selectedLocation}
+                    onValueChange={(v) => setValue("location", v ?? "", { shouldValidate: true })}
+                  >
+                    <SelectTrigger id="location">
+                      <SelectValue placeholder="Seleziona una sede" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {locations.map((loc) => (
+                        <SelectItem key={loc} value={loc}>
+                          {loc}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                {errors.location && (
+                  <p className="text-sm text-destructive">{errors.location.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="points">Punti</Label>
+                <Input
+                  id="points"
+                  placeholder="Es. 10 o -5"
+                  {...register("points")}
+                />
+                {errors.points && (
+                  <p className="text-sm text-destructive">{errors.points.message}</p>
+                )}
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Punti</Label>
-              <Input
-                value={points}
-                onChange={(e) => setPoints(e.target.value)}
-                placeholder="Es. 10 o -5"
-              />
-            </div>
-          </div>
-
-          {message && (
-            <div className="rounded-lg bg-muted px-4 py-3 text-sm text-muted-foreground">
-              {message}
-            </div>
-          )}
-
-          <Button onClick={createQr} disabled={creating}>
-            {creating ? "Creazione in corso..." : "Crea codice QR"}
-          </Button>
+            <Button type="submit" disabled={creating}>
+              {creating ? "Creazione in corso..." : "Crea codice QR"}
+            </Button>
+          </form>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Codici QR di oggi</CardTitle>
-          <Button variant="outline" size="sm" onClick={refreshTodayCodes}>
+          <CardTitle>Codici QR</CardTitle>
+          <Button variant="outline" size="sm" onClick={refreshQrCodes}>
             Aggiorna
           </Button>
         </CardHeader>
@@ -215,13 +232,13 @@ export default function QrPanel() {
               <Skeleton className="h-48 w-full" />
               <Skeleton className="h-48 w-full" />
             </div>
-          ) : todayCodes.length === 0 ? (
+          ) : qrCodes.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Nessun codice QR disponibile oggi.
+              Nessun codice QR disponibile.
             </p>
           ) : (
             <div className="space-y-3">
-              {todayCodes.map((raw) => (
+              {qrCodes.map((raw) => (
                 <QrCard key={raw} raw={raw} />
               ))}
             </div>

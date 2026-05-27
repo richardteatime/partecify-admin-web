@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { adminService } from "@/services/admin-service";
 import { RegistrationItem, WheelItem, WheelSettings, WheelSpin } from "@/types/admin";
 import {
@@ -39,20 +42,46 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
+
+const wheelSchema = z.object({
+  selectedRegistration: z.string().min(1, "Seleziona una registrazione."),
+  title: z.string().optional(),
+  theme: z.enum(["base", "neon", "gold", "party"]),
+  mode: z.enum(["single", "sequence"]),
+  spinCount: z.number().min(1, "Almeno 1 spin."),
+});
+
+type WheelFormData = z.infer<typeof wheelSchema>;
 
 export default function WheelPanel() {
   const [registrations, setRegistrations] = useState<RegistrationItem[]>([]);
   const [wheels, setWheels] = useState<WheelItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState("");
   const [origin, setOrigin] = useState("");
 
-  // Form state
-  const [selectedRegistration, setSelectedRegistration] = useState("");
-  const [title, setTitle] = useState("");
-  const [theme, setTheme] = useState<WheelSettings["theme"]>("party");
-  const [mode, setMode] = useState<WheelSettings["mode"]>("single");
-  const [spinCount, setSpinCount] = useState(5);
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    reset,
+    formState: { errors },
+  } = useForm<WheelFormData>({
+    resolver: zodResolver(wheelSchema),
+    defaultValues: {
+      selectedRegistration: "",
+      title: "",
+      theme: "party",
+      mode: "single",
+      spinCount: 5,
+    },
+  });
+
+  const selectedRegistration = watch("selectedRegistration");
+  const theme = watch("theme");
+  const mode = watch("mode");
+  const spinCount = watch("spinCount");
   const [creating, setCreating] = useState(false);
 
   // Winners modal
@@ -76,7 +105,7 @@ export default function WheelPanel() {
       setRegistrations(regs.filter((r) => r.isTimed && r.userCount > 0));
       setWheels(wls);
     } catch (err: unknown) {
-      setMessage(err instanceof Error ? err.message : "Errore caricamento dati.");
+      toast.error(err instanceof Error ? err.message : "Errore caricamento dati.");
     } finally {
       setLoading(false);
     }
@@ -84,20 +113,15 @@ export default function WheelPanel() {
 
   function handleRegistrationChange(docId: string | null) {
     if (!docId) return;
-    setSelectedRegistration(docId);
+    setValue("selectedRegistration", docId, { shouldValidate: true });
     const reg = registrations.find((r) => r.docId === docId);
     if (reg) {
-      setTitle(`Ruota ${reg.title} - ${reg.location}`);
+      setValue("title", `Ruota ${reg.title} - ${reg.location}`);
     }
   }
 
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault();
-    if (!selectedRegistration) {
-      setMessage("Seleziona una registrazione.");
-      return;
-    }
-    const reg = registrations.find((r) => r.docId === selectedRegistration);
+  async function onSubmit(data: WheelFormData) {
+    const reg = registrations.find((r) => r.docId === data.selectedRegistration);
     if (!reg) return;
 
     const participants = reg.users
@@ -105,44 +129,45 @@ export default function WheelPanel() {
       .filter(Boolean);
 
     if (participants.length === 0) {
-      setMessage("Nessun partecipante trovato nella registrazione selezionata.");
+      toast.error("Nessun partecipante trovato nella registrazione selezionata.");
       return;
     }
 
     setCreating(true);
-    setMessage("");
 
-    const sequenceSteps = Array.from({ length: spinCount }, (_, i) => ({
+    const sequenceSteps = Array.from({ length: data.spinCount }, (_, i) => ({
       id: `step-${i}`,
       type: "random" as const,
       winnerName: null as string | null,
     }));
 
     const settings: WheelSettings = {
-      theme,
-      mode,
+      theme: data.theme,
+      mode: data.mode,
       forcedWinner: null,
       soundEnabled: true,
-      sequenceSteps: mode === "sequence" ? sequenceSteps : [],
+      sequenceSteps: data.mode === "sequence" ? sequenceSteps : [],
     };
 
     try {
       const id = await adminService.createWheel({
-        title: title.trim() || reg.title,
+        title: data.title?.trim() || reg.title,
         location: reg.location,
         participants,
         sourceRegistrationId: reg.docId,
         settings,
       });
-      setMessage(`Ruota creata! Link: ${origin}/wheel/${id}`);
-      setSelectedRegistration("");
-      setTitle("");
-      setTheme("party");
-      setMode("single");
-      setSpinCount(5);
+      toast.success(`Ruota creata! Link: ${origin}/wheel/${id}`);
+      reset({
+        selectedRegistration: "",
+        title: "",
+        theme: "party",
+        mode: "single",
+        spinCount: 5,
+      });
       await loadData();
     } catch (err: unknown) {
-      setMessage(err instanceof Error ? err.message : "Errore creazione ruota.");
+      toast.error(err instanceof Error ? err.message : "Errore creazione ruota.");
     } finally {
       setCreating(false);
     }
@@ -165,7 +190,7 @@ export default function WheelPanel() {
   function copyLink(id: string) {
     const url = `${origin}/wheel/${id}`;
     navigator.clipboard.writeText(url).then(() => {
-      setMessage("Link copiato negli appunti!");
+      toast.success("Link copiato negli appunti!");
     });
   }
 
@@ -186,12 +211,6 @@ export default function WheelPanel() {
           <TabsTrigger value="list">Lista ruote</TabsTrigger>
         </TabsList>
 
-        {message && (
-          <div className="mt-4 rounded-xl bg-neutral-100 px-4 py-3 text-sm text-neutral-700">
-            {message}
-          </div>
-        )}
-
         <TabsContent value="create" className="mt-4">
           <Card>
             <CardHeader>
@@ -201,7 +220,7 @@ export default function WheelPanel() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form id="wheel-form" onSubmit={handleCreate} className="space-y-4">
+              <form id="wheel-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="registration">Registrazione *</Label>
                   <Select
@@ -219,15 +238,17 @@ export default function WheelPanel() {
                       ))}
                     </SelectContent>
                   </Select>
+                  {errors.selectedRegistration && (
+                    <p className="text-sm text-destructive">{errors.selectedRegistration.message}</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="title">Titolo ruota</Label>
                   <Input
                     id="title"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
                     placeholder="Es. Ruota Serata Live"
+                    {...register("title")}
                   />
                 </div>
 
@@ -236,7 +257,7 @@ export default function WheelPanel() {
                     <Label htmlFor="theme">Tema</Label>
                     <Select
                       value={theme}
-                      onValueChange={(v) => setTheme(v as WheelSettings["theme"])}
+                      onValueChange={(v) => setValue("theme", v as WheelSettings["theme"])}
                     >
                       <SelectTrigger id="theme">
                         <SelectValue />
@@ -253,7 +274,7 @@ export default function WheelPanel() {
                     <Label htmlFor="mode">Modalità</Label>
                     <Select
                       value={mode}
-                      onValueChange={(v) => setMode(v as WheelSettings["mode"])}
+                      onValueChange={(v) => setValue("mode", v as WheelSettings["mode"])}
                     >
                       <SelectTrigger id="mode">
                         <SelectValue />
@@ -274,7 +295,7 @@ export default function WheelPanel() {
                         type="button"
                         variant="outline"
                         size="icon"
-                        onClick={() => setSpinCount((c) => Math.max(1, c - 1))}
+                        onClick={() => setValue("spinCount", Math.max(1, spinCount - 1))}
                       >
                         -
                       </Button>
@@ -283,11 +304,14 @@ export default function WheelPanel() {
                         type="button"
                         variant="outline"
                         size="icon"
-                        onClick={() => setSpinCount((c) => c + 1)}
+                        onClick={() => setValue("spinCount", spinCount + 1)}
                       >
                         +
                       </Button>
                     </div>
+                    {errors.spinCount && (
+                      <p className="text-sm text-destructive">{errors.spinCount.message}</p>
+                    )}
                   </div>
                 )}
               </form>
