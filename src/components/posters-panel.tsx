@@ -5,12 +5,34 @@ import { adminService } from "@/services/admin-service";
 import { PosterItem } from "@/types/admin";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { storage } from "@/lib/firebase";
-
-type Tab = "generate" | "gallery";
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from "@/components/ui/tabs";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function PostersPanel() {
-  const [activeTab, setActiveTab] = useState<Tab>("generate");
-
   // Form fields
   const [titolo, setTitolo] = useState("");
   const [sottotitolo, setSottotitolo] = useState("");
@@ -183,7 +205,6 @@ export default function PostersPanel() {
       setTema("");
       setAssets([]);
       await loadPosters();
-      setActiveTab("gallery");
     } catch (err: unknown) {
       setMessage(err instanceof Error ? err.message : "Errore durante il salvataggio.");
     } finally {
@@ -215,264 +236,268 @@ export default function PostersPanel() {
         </p>
       </div>
 
-      <div className="flex gap-2">
-        <button
-          onClick={() => setActiveTab("generate")}
-          className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
-            activeTab === "generate"
-              ? "bg-red-600 text-white"
-              : "border border-neutral-300 hover:bg-neutral-50"
-          }`}
-        >
-          Genera
-        </button>
-        <button
-          onClick={() => setActiveTab("gallery")}
-          className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
-            activeTab === "gallery"
-              ? "bg-red-600 text-white"
-              : "border border-neutral-300 hover:bg-neutral-50"
-          }`}
-        >
-          Galleria
-        </button>
-      </div>
+      <Tabs defaultValue="generate" className="w-full">
+        <TabsList>
+          <TabsTrigger value="generate">Genera</TabsTrigger>
+          <TabsTrigger value="gallery">Galleria</TabsTrigger>
+        </TabsList>
 
-      {message && (
-        <div className="rounded-xl bg-neutral-100 px-4 py-3 text-sm text-neutral-700">
-          {message}
-        </div>
-      )}
+        {message && (
+          <div className="mt-4 rounded-xl bg-neutral-100 px-4 py-3 text-sm text-neutral-700">
+            {message}
+          </div>
+        )}
 
-      {activeTab === "generate" && (
-        <div className="space-y-6">
-          <form onSubmit={handleGenerate} className="rounded-2xl bg-white p-6 shadow-sm">
-            <h3 className="mb-4 font-semibold">Nuova locandina</h3>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="md:col-span-2">
-                <label className="mb-2 block text-sm font-medium">Titolo evento *</label>
-                <input
-                  className="w-full rounded-xl border border-neutral-300 px-4 py-3"
-                  value={titolo}
-                  onChange={(e) => setTitolo(e.target.value)}
-                  placeholder="Es. Serata Live"
+        <TabsContent value="generate" className="mt-4 space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Nuova locandina</CardTitle>
+              <CardDescription>
+                Compila i dettagli dell&apos;evento per generare una locandina.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form id="poster-form" onSubmit={handleGenerate} className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="titolo">Titolo evento *</Label>
+                    <Input
+                      id="titolo"
+                      value={titolo}
+                      onChange={(e) => setTitolo(e.target.value)}
+                      placeholder="Es. Serata Live"
+                    />
+                  </div>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="sottotitolo">Sottotitolo</Label>
+                    <Input
+                      id="sottotitolo"
+                      value={sottotitolo}
+                      onChange={(e) => setSottotitolo(e.target.value)}
+                      placeholder="Es. Special Guest DJ Marco"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="dataEvento">Data evento</Label>
+                    <Input
+                      id="dataEvento"
+                      type="date"
+                      value={dataEvento}
+                      onChange={(e) => setDataEvento(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="oraEvento">Ora evento</Label>
+                    <Input
+                      id="oraEvento"
+                      type="time"
+                      value={oraEvento}
+                      onChange={(e) => setOraEvento(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="tema">Tema / Descrizione</Label>
+                    <Textarea
+                      id="tema"
+                      value={tema}
+                      onChange={(e) => setTema(e.target.value)}
+                      placeholder="Descrivi l'atmosfera o il tema dell'evento..."
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="aspectRatio">Aspect ratio</Label>
+                    <Select value={aspectRatio} onValueChange={(v) => setAspectRatio(v ?? "")}>
+                      <SelectTrigger id="aspectRatio">
+                        <SelectValue placeholder="Seleziona aspect ratio" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {aspectOptions.map((r) => (
+                          <SelectItem key={r} value={r}>
+                            {r}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="sede">Sede *</Label>
+                    <Select value={sede} onValueChange={(v) => setSede(v ?? "")}>
+                      <SelectTrigger id="sede">
+                        <SelectValue placeholder="Seleziona una sede" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {locations.map((loc) => (
+                          <SelectItem key={loc} value={loc}>
+                            {loc}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-2 pt-2">
+                  <Label htmlFor="assets">Immagini di riferimento</Label>
+                  <Input
+                    id="assets"
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={handleFileSelect}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Carica foto di ospiti, oggetti, loghi collaborazione, ecc.
+                  </p>
+
+                  {assets.length > 0 && (
+                    <div className="mt-4 space-y-3">
+                      {assets.map((asset, idx) => (
+                        <Card
+                          key={idx}
+                          className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center"
+                        >
+                          <span className="flex-1 truncate text-sm font-medium text-neutral-700">
+                            {asset.file.name}
+                          </span>
+                          <Select
+                            value={asset.category}
+                            onValueChange={(v) => updateAsset(idx, "category", v ?? "")}
+                          >
+                            <SelectTrigger className="w-40">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="guest">Ospite speciale</SelectItem>
+                              <SelectItem value="object">Oggetto / Elemento</SelectItem>
+                              <SelectItem value="logo_collab">Logo collaborazione</SelectItem>
+                              <SelectItem value="other">Altro</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Input
+                            className="flex-1"
+                            placeholder="Descrizione (opzionale)"
+                            value={asset.description}
+                            onChange={(e) => updateAsset(idx, "description", e.target.value)}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleRemoveAsset(idx)}
+                          >
+                            Rimuovi
+                          </Button>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </form>
+            </CardContent>
+            <CardFooter>
+              <Button
+                type="submit"
+                form="poster-form"
+                disabled={generating}
+              >
+                {generating ? "Generazione in corso (30-90s)..." : "Genera locandina"}
+              </Button>
+            </CardFooter>
+          </Card>
+
+          {previewUrl && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Anteprima</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <img
+                  src={previewUrl}
+                  alt="Anteprima locandina"
+                  className="max-h-[60vh] w-auto rounded-lg border object-contain"
                 />
-              </div>
+                <div className="flex flex-col gap-3 md:flex-row">
+                  <Input
+                    className="flex-1"
+                    value={posterName}
+                    onChange={(e) => setPosterName(e.target.value)}
+                    placeholder="Nome file per Firebase..."
+                  />
+                  <Button onClick={handleSave} disabled={saving}>
+                    {saving ? "Salvataggio..." : "Salva su Firebase"}
+                  </Button>
+                  <Button variant="outline" onClick={handleDownload}>
+                    Scarica PNG
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
 
-              <div className="md:col-span-2">
-                <label className="mb-2 block text-sm font-medium">Sottotitolo</label>
-                <input
-                  className="w-full rounded-xl border border-neutral-300 px-4 py-3"
-                  value={sottotitolo}
-                  onChange={(e) => setSottotitolo(e.target.value)}
-                  placeholder="Es. Special Guest DJ Marco"
-                />
-              </div>
-
+        <TabsContent value="gallery" className="mt-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <label className="mb-2 block text-sm font-medium">Data evento</label>
-                <input
-                  type="date"
-                  className="w-full rounded-xl border border-neutral-300 px-4 py-3"
-                  value={dataEvento}
-                  onChange={(e) => setDataEvento(e.target.value)}
-                />
+                <CardTitle>Galleria locandine</CardTitle>
+                <CardDescription>
+                  Tutte le locandine generate e salvate.
+                </CardDescription>
               </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium">Ora evento</label>
-                <input
-                  type="time"
-                  className="w-full rounded-xl border border-neutral-300 px-4 py-3"
-                  value={oraEvento}
-                  onChange={(e) => setOraEvento(e.target.value)}
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="mb-2 block text-sm font-medium">Tema / Descrizione</label>
-                <textarea
-                  className="min-h-24 w-full rounded-xl border border-neutral-300 px-4 py-3"
-                  value={tema}
-                  onChange={(e) => setTema(e.target.value)}
-                  placeholder="Descrivi l'atmosfera o il tema dell'evento..."
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium">Aspect ratio</label>
-                <select
-                  className="w-full rounded-xl border border-neutral-300 px-4 py-3"
-                  value={aspectRatio}
-                  onChange={(e) => setAspectRatio(e.target.value)}
-                >
-                  {aspectOptions.map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium">Sede *</label>
-                <select
-                  className="w-full rounded-xl border border-neutral-300 px-4 py-3"
-                  value={sede}
-                  onChange={(e) => setSede(e.target.value)}
-                >
-                  <option value="">Seleziona una sede</option>
-                  {locations.map((loc) => (
-                    <option key={loc} value={loc}>
-                      {loc}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="mt-6">
-              <label className="mb-2 block text-sm font-medium">Immagini di riferimento</label>
-              <input
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={handleFileSelect}
-                className="block w-full text-sm text-neutral-600 file:mr-4 file:rounded-xl file:border-0 file:bg-red-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-red-700 hover:file:bg-red-100"
-              />
-              <p className="mt-1 text-xs text-neutral-500">
-                Carica foto di ospiti, oggetti, loghi collaborazione, ecc.
-              </p>
-
-              {assets.length > 0 && (
-                <div className="mt-4 space-y-3">
-                  {assets.map((asset, idx) => (
-                    <div
-                      key={idx}
-                      className="flex flex-col gap-2 rounded-xl border border-neutral-200 bg-neutral-50 p-3 sm:flex-row sm:items-center"
-                    >
-                      <span className="flex-1 truncate text-sm font-medium text-neutral-700">
-                        {asset.file.name}
-                      </span>
-                      <select
-                        className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
-                        value={asset.category}
-                        onChange={(e) => updateAsset(idx, "category", e.target.value)}
-                      >
-                        <option value="guest">Ospite speciale</option>
-                        <option value="object">Oggetto / Elemento</option>
-                        <option value="logo_collab">Logo collaborazione</option>
-                        <option value="other">Altro</option>
-                      </select>
-                      <input
-                        className="flex-1 rounded-lg border border-neutral-300 px-3 py-2 text-sm"
-                        placeholder="Descrizione (opzionale)"
-                        value={asset.description}
-                        onChange={(e) => updateAsset(idx, "description", e.target.value)}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveAsset(idx)}
-                        className="rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-100"
-                      >
-                        Rimuovi
-                      </button>
+              <Button variant="outline" onClick={loadPosters}>
+                Aggiorna
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {loadingPosters ? (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="space-y-2">
+                      <Skeleton className="aspect-video w-full rounded-lg" />
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-3 w-1/2" />
                     </div>
                   ))}
                 </div>
-              )}
-            </div>
-
-            <div className="mt-6">
-              <button
-                type="submit"
-                disabled={generating}
-                className="rounded-xl bg-red-600 px-5 py-3 font-medium text-white hover:bg-red-700 disabled:opacity-60"
-              >
-                {generating ? "Generazione in corso (30-90s)..." : "Genera locandina"}
-              </button>
-            </div>
-          </form>
-
-          {previewUrl && (
-            <div className="rounded-2xl bg-white p-6 shadow-sm">
-              <h3 className="mb-4 font-semibold">Anteprima</h3>
-              <img
-                src={previewUrl}
-                alt="Anteprima locandina"
-                className="mb-4 max-h-[60vh] w-auto rounded-xl border border-neutral-200 object-contain"
-              />
-
-              <div className="flex flex-col gap-3 md:flex-row">
-                <input
-                  className="flex-1 rounded-xl border border-neutral-300 px-4 py-3"
-                  value={posterName}
-                  onChange={(e) => setPosterName(e.target.value)}
-                  placeholder="Nome file per Firebase..."
-                />
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="rounded-xl bg-red-600 px-5 py-3 font-medium text-white hover:bg-red-700 disabled:opacity-60"
-                >
-                  {saving ? "Salvataggio..." : "Salva su Firebase"}
-                </button>
-                <button
-                  onClick={handleDownload}
-                  className="rounded-xl border border-neutral-300 px-5 py-3 hover:bg-neutral-50"
-                >
-                  Scarica PNG
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {activeTab === "gallery" && (
-        <div className="rounded-2xl bg-white p-6 shadow-sm">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="font-semibold">Galleria locandine</h3>
-            <button
-              onClick={loadPosters}
-              className="rounded-xl border border-neutral-300 px-4 py-2 text-sm hover:bg-neutral-50"
-            >
-              Aggiorna
-            </button>
-          </div>
-
-          {loadingPosters ? (
-            <p className="text-sm text-neutral-500">Caricamento...</p>
-          ) : posters.length === 0 ? (
-            <p className="text-sm text-neutral-500">Nessuna locandina salvata.</p>
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {posters.map((p) => (
-                <div
-                  key={p.id}
-                  className="rounded-xl border border-neutral-200 bg-neutral-50 p-3"
-                >
-                  <img
-                    src={p.imageUrl}
-                    alt={p.title}
-                    className="mb-3 aspect-video w-full rounded-lg object-cover"
-                    loading="lazy"
-                  />
-                  <h4 className="font-medium text-sm">{p.title}</h4>
-                  <p className="text-xs text-neutral-500">
-                    {p.location} · {p.aspectRatio}
-                  </p>
-                  {p.eventDate && (
-                    <p className="text-xs text-neutral-500">
-                      {p.eventDate} {p.eventTime}
-                    </p>
-                  )}
+              ) : posters.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Nessuna locandina salvata.
+                </p>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {posters.map((p) => (
+                    <Card key={p.id} className="overflow-hidden">
+                      <img
+                        src={p.imageUrl}
+                        alt={p.title}
+                        className="aspect-video w-full object-cover"
+                        loading="lazy"
+                      />
+                      <CardContent className="space-y-1 pt-4">
+                        <CardTitle className="text-sm">{p.title}</CardTitle>
+                        <CardDescription>
+                          {p.location} · {p.aspectRatio}
+                        </CardDescription>
+                        {p.eventDate && (
+                          <CardDescription>
+                            {p.eventDate} {p.eventTime}
+                          </CardDescription>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -3,6 +3,32 @@
 import { useEffect, useState } from "react";
 import { adminService } from "@/services/admin-service";
 import { EventItem, NewsItem, TimedNewsItem } from "@/types/admin";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 
 type DeleteType = "news" | "event" | "timedNews";
 
@@ -11,6 +37,7 @@ export default function DeletePanel() {
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<Array<NewsItem | EventItem | TimedNewsItem>>([]);
   const [message, setMessage] = useState("");
+  const [itemToDelete, setItemToDelete] = useState<number | null>(null);
 
   async function loadItems() {
     setLoading(true);
@@ -31,80 +58,119 @@ export default function DeletePanel() {
     loadItems();
   }, [type]);
 
-  async function removeAt(index: number) {
-    const confirmed = window.confirm("Vuoi eliminare questo elemento?");
-    if (!confirmed) return;
+  async function confirmDelete() {
+    if (itemToDelete === null) return;
 
     try {
       await adminService.deleteItemAt({
         deleteSelectedType: type,
-        index,
+        index: itemToDelete,
       });
       await loadItems();
       setMessage("Elemento eliminato correttamente.");
     } catch {
       setMessage("Errore durante l'eliminazione.");
+    } finally {
+      setItemToDelete(null);
     }
   }
 
   return (
-    <div className="rounded-2xl bg-white p-6 shadow-sm">
-      <div className="mb-6 flex items-end gap-4">
-        <div className="flex-1">
-          <label className="mb-2 block text-sm font-medium">Tipo di contenuto</label>
-          <select
-            className="w-full rounded-xl border border-neutral-300 px-4 py-3"
-            value={type}
-            onChange={(e) => setType(e.target.value as DeleteType)}
-          >
-            <option value="news">News</option>
-            <option value="event">Eventi</option>
-            <option value="timedNews">Notizie temporizzate</option>
-          </select>
-        </div>
-
-        <button
-          onClick={loadItems}
-          className="rounded-xl border border-neutral-300 px-4 py-3 hover:bg-neutral-50"
-        >
-          Aggiorna
-        </button>
-      </div>
-
-      {message && (
-        <div className="mb-4 rounded-xl bg-neutral-100 px-4 py-3 text-sm text-neutral-700">
-          {message}
-        </div>
-      )}
-
-      {loading ? (
-        <p className="text-sm text-neutral-500">Caricamento in corso...</p>
-      ) : items.length === 0 ? (
-        <p className="text-sm text-neutral-500">Nessun elemento disponibile.</p>
-      ) : (
-        <div className="space-y-3">
-          {items.map((item: any, index) => (
-            <div
-              key={`${type}-${index}`}
-              className="flex items-start justify-between rounded-xl border border-neutral-200 p-4"
+    <Card>
+      <CardHeader>
+        <CardTitle>Elimina contenuti</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-end gap-4">
+          <div className="flex-1 space-y-2">
+            <label className="text-sm font-medium">Tipo di contenuto</label>
+            <Select
+              value={type}
+              onValueChange={(v) => setType(v as DeleteType)}
             >
-              <div>
-                <h3 className="font-semibold">{item.title ?? "Senza titolo"}</h3>
-                <p className="mt-1 text-sm text-neutral-500">
-                  {item.description ?? item.location ?? ""}
-                </p>
-              </div>
+              <SelectTrigger>
+                <SelectValue placeholder="Seleziona un tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="news">News</SelectItem>
+                <SelectItem value="event">Eventi</SelectItem>
+                <SelectItem value="timedNews">Notizie temporizzate</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-              <button
-                onClick={() => removeAt(index)}
-                className="rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
-              >
-                Elimina
-              </button>
-            </div>
-          ))}
+          <Button variant="outline" onClick={loadItems}>
+            Aggiorna
+          </Button>
         </div>
-      )}
-    </div>
+
+        {message && (
+          <div className="rounded-lg bg-muted px-4 py-3 text-sm text-muted-foreground">
+            {message}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="space-y-3">
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-20 w-full" />
+          </div>
+        ) : items.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Nessun elemento disponibile.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {items.map((item: any, index) => (
+              <div
+                key={`${type}-${index}`}
+                className="flex items-start justify-between rounded-lg border p-4"
+              >
+                <div>
+                  <h3 className="font-semibold">{item.title ?? "Senza titolo"}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {item.description ?? item.location ?? ""}
+                  </p>
+                </div>
+
+                <AlertDialog
+                  open={itemToDelete === index}
+                  onOpenChange={(open) => {
+                    if (!open) setItemToDelete(null);
+                  }}
+                >
+                  <AlertDialogTrigger
+                    render={
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => setItemToDelete(index)}
+                      />
+                    }
+                  >
+                    Elimina
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Conferma eliminazione</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Vuoi eliminare questo elemento? Questa azione non può essere annullata.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Annulla</AlertDialogCancel>
+                      <AlertDialogAction onClick={confirmDelete}>
+                        Conferma
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
