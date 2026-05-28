@@ -133,7 +133,7 @@ export default function RegistrationsPanel() {
           open={!!viewingItem}
           onOpenChange={(open) => !open && setViewingItem(null)}
         >
-          <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogContent className="max-w-5xl w-full max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Partecipanti</DialogTitle>
               <DialogDescription>
@@ -143,7 +143,7 @@ export default function RegistrationsPanel() {
             </DialogHeader>
 
             {viewingItem && (
-              <div className="overflow-hidden rounded-lg border">
+              <div className="overflow-x-auto rounded-lg border">
                 <Table>
                   <TableHeader>
                     <TableRow>

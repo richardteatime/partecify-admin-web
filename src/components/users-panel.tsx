@@ -250,7 +250,7 @@ export default function UsersPanel() {
       </Card>
 
       <Dialog open={!!editingUser} onOpenChange={(open) => !open && closeEdit()}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-xl w-full">
           <DialogHeader>
             <DialogTitle>Modifica utente</DialogTitle>
             <DialogDescription>

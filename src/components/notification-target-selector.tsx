@@ -217,7 +217,7 @@ export default function NotificationTargetSelector({
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl w-full max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Seleziona utenti</DialogTitle>
             <DialogDescription>
@@ -263,7 +263,7 @@ export default function NotificationTargetSelector({
               Nessun utente trovato.
             </p>
           ) : (
-            <div className="overflow-hidden rounded-lg border">
+            <div className="overflow-x-auto rounded-lg border">
               <Table>
                 <TableHeader>
                   <TableRow>

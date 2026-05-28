@@ -406,7 +406,7 @@ export default function WheelPanel() {
           if (!open) setViewingWheel(null);
         }}
       >
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-xl w-full">
           <DialogHeader>
             <DialogTitle>Vincitori — {viewingTitle}</DialogTitle>
             <DialogDescription>
