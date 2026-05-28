@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { adminService } from "@/services/admin-service";
 import { RegistrationItem, WheelItem, WheelSettings, WheelSpin } from "@/types/admin";
+import WheelSettingsDialog from "@/components/wheel-settings-dialog";
 import {
   Tabs,
   TabsList,
@@ -89,6 +90,9 @@ export default function WheelPanel() {
   const [viewingTitle, setViewingTitle] = useState("");
   const [spins, setSpins] = useState<WheelSpin[]>([]);
   const [loadingSpins, setLoadingSpins] = useState(false);
+
+  const [editingWheel, setEditingWheel] = useState<WheelItem | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     setOrigin(window.location.origin);
@@ -389,6 +393,16 @@ export default function WheelPanel() {
                         >
                           Vedi vincitori
                         </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setEditingWheel(w);
+                            setSettingsOpen(true);
+                          }}
+                        >
+                          Impostazioni
+                        </Button>
                       </div>
                     </Card>
                   ))}
@@ -398,6 +412,13 @@ export default function WheelPanel() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <WheelSettingsDialog
+        wheel={editingWheel}
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        onSaved={loadData}
+      />
 
       {/* Winners Dialog */}
       <Dialog

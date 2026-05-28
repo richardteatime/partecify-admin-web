@@ -5,7 +5,6 @@ import { AppSettings, THEMES } from './types';
 
 interface ControlsProps {
   onSpin: () => void;
-  onOpenSettings: () => void;
   isSpinning: boolean;
   settings: AppSettings;
   winner: string | null;
@@ -13,7 +12,6 @@ interface ControlsProps {
 
 const Controls: React.FC<ControlsProps> = ({
   onSpin,
-  onOpenSettings,
   isSpinning,
   settings,
   winner
@@ -31,16 +29,6 @@ const Controls: React.FC<ControlsProps> = ({
       >
         {isSpinning ? 'Spinning...' : 'SPIN THE WHEEL'}
       </button>
-
-      <div className="flex w-full gap-3">
-         {/* Settings Trigger */}
-         <button
-           onClick={onOpenSettings}
-           className="w-full py-3 px-4 bg-slate-800 border border-slate-600 rounded-lg hover:bg-slate-700 transition-colors text-slate-200 font-bold text-sm uppercase"
-         >
-           Impostazioni
-         </button>
-      </div>
 
       {winner && (
         <div className="text-center mt-2">

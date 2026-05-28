@@ -7,7 +7,6 @@ import { WheelItem } from "@/types/admin";
 import { WheelSegment, AppSettings, THEMES } from "@/components/wheel/types";
 import Wheel, { WheelHandle } from "@/components/wheel/Wheel";
 import Controls from "@/components/wheel/Controls";
-import SettingsModal from "@/components/wheel/SettingsModal";
 import WinnerModal from "@/components/wheel/WinnerModal";
 
 function generateSegments(names: string[], themeName: string): WheelSegment[] {
@@ -41,7 +40,6 @@ export default function WheelPlayer() {
   const [segments, setSegments] = useState<WheelSegment[]>([]);
   const [isSpinning, setIsSpinning] = useState(false);
   const [winner, setWinner] = useState<WheelSegment | null>(null);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const wheelRef = useRef<WheelHandle>(null);
 
@@ -181,20 +179,11 @@ export default function WheelPlayer() {
         />
         <Controls
           onSpin={handleSpinStart}
-          onOpenSettings={() => setIsSettingsOpen(true)}
           isSpinning={isSpinning}
           settings={settings}
           winner={winner?.text || null}
         />
       </main>
-
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        settings={settings}
-        updateSettings={setSettings}
-        segments={segments}
-      />
 
       <WinnerModal winner={winner} onClose={handleWinnerModalClose} />
     </div>

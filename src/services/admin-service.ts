@@ -510,6 +510,15 @@ export const adminService = {
     return docRef.id;
   },
 
+  async updateWheel(id: string, data: Partial<WheelItem>): Promise<void> {
+    const ref = doc(getDbInstance(), "wheels", id);
+    const payload: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (value !== undefined) payload[key] = value;
+    }
+    await updateDoc(ref, payload);
+  },
+
   async fetchWheel(id: string): Promise<WheelItem | null> {
     const snap = await getDoc(doc(getDbInstance(), "wheels", id));
     if (!snap.exists()) return null;
