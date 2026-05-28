@@ -59,7 +59,6 @@ export default function PostersPanel() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
   const [posterName, setPosterName] = useState("");
-  const [saving, setSaving] = useState(false);
 
   // Gallery state
   const [posters, setPosters] = useState<PosterItem[]>([]);
@@ -188,11 +187,15 @@ export default function PostersPanel() {
       }
 
       const blob = await resp.blob();
-      setPreviewBlob(blob);
-      setPreviewUrl(URL.createObjectURL(blob));
       const suggestedName = `locandina_${data.titolo.replace(/\s+/g, "_").toLowerCase()}_${Date.now()}.png`;
       setPosterName(suggestedName);
-      toast.success("Locandina generata! Ora puoi salvarla su Firebase.");
+
+      await savePosterBlob(blob, suggestedName);
+      toast.success("Locandina generata e salvata in galleria!");
+
+      setPreviewBlob(blob);
+      setPreviewUrl(URL.createObjectURL(blob));
+      await loadPosters();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Errore durante la generazione.");
     } finally {
@@ -200,50 +203,22 @@ export default function PostersPanel() {
     }
   }
 
-  async function handleSave() {
-    if (!previewBlob || !posterName.trim()) {
-      toast.error("Nessuna locandina da salvare o nome mancante.");
-      return;
-    }
-    setSaving(true);
+  async function savePosterBlob(blob: Blob, name: string) {
+    const storageRef = ref(getStorageInstance(), `posters/${name.trim()}`);
+    await uploadBytes(storageRef, blob);
+    const imageUrl = await getDownloadURL(storageRef);
 
-    try {
-      const storageRef = ref(getStorageInstance(), `posters/${posterName.trim()}`);
-      await uploadBytes(storageRef, previewBlob);
-      const imageUrl = await getDownloadURL(storageRef);
-
-      await adminService.savePosterMetadata({
-        title: titolo,
-        subtitle: sottotitolo || undefined,
-        eventDate: dataEvento || undefined,
-        eventTime: oraEvento || undefined,
-        theme: tema || undefined,
-        aspectRatio,
-        location: sede,
-        imageUrl,
-        storagePath: `posters/${posterName.trim()}`,
-      });
-
-      toast.success("Locandina salvata con successo su Firebase.");
-      setPreviewUrl(null);
-      setPreviewBlob(null);
-      setPosterName("");
-      reset({
-        titolo: "",
-        sottotitolo: "",
-        dataEvento: "",
-        oraEvento: "",
-        tema: "",
-        aspectRatio: "16:9",
-        sede: "",
-      });
-      setAssets([]);
-      await loadPosters();
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Errore durante il salvataggio.");
-    } finally {
-      setSaving(false);
-    }
+    await adminService.savePosterMetadata({
+      title: titolo,
+      subtitle: sottotitolo || undefined,
+      eventDate: dataEvento || undefined,
+      eventTime: oraEvento || undefined,
+      theme: tema || undefined,
+      aspectRatio,
+      location: sede,
+      imageUrl,
+      storagePath: `posters/${name.trim()}`,
+    });
   }
 
   function handleDownload() {
@@ -459,11 +434,8 @@ export default function PostersPanel() {
                     className="flex-1"
                     value={posterName}
                     onChange={(e) => setPosterName(e.target.value)}
-                    placeholder="Nome file per Firebase..."
+                    placeholder="Nome file per il download..."
                   />
-                  <Button onClick={handleSave} disabled={saving}>
-                    {saving ? "Salvataggio..." : "Salva su Firebase"}
-                  </Button>
                   <Button variant="outline" onClick={handleDownload}>
                     Scarica PNG
                   </Button>
