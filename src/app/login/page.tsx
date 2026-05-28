@@ -102,14 +102,16 @@ export default function LoginPage() {
 
       <Card className="relative z-10 w-full max-w-md border border-border/50 bg-card shadow-2xl">
         <CardHeader className="items-center space-y-4 pb-6">
-          <Image
-            src="/logo-partecify.png"
-            alt="Logo Partecify"
-            width={200}
-            height={200}
-            className="h-36 w-auto object-contain"
-            priority
-          />
+          <div className="flex justify-center">
+            <Image
+              src="/logo-partecify.png"
+              alt="Logo Partecify"
+              width={200}
+              height={200}
+              className="h-36 w-auto object-contain"
+              priority
+            />
+          </div>
           <div className="space-y-1 text-center">
             <CardDescription className="text-base">
               Accedi al pannello di gestione
