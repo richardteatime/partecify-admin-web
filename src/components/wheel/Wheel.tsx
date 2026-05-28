@@ -46,14 +46,14 @@ const Wheel = forwardRef<WheelHandle, WheelProps>(({
     .value(() => 1); // Equal slices
 
   const arc = d3.arc<d3.PieArcDatum<WheelSegment>>()
-    .innerRadius(45) // Larger hole for center cap
+    .innerRadius(20) // Small hole in center
     .outerRadius(radius - padding); // Padding for border
 
   const arcs = pie(segments);
 
-  // TARGET ANGLE: The pointer is on the TOP (12 o'clock)
-  // In D3 coordinate system (0 at 12 o'clock), 12 o'clock is 0/360 degrees.
-  const POINTER_ANGLE = 0;
+  // TARGET ANGLE: The pointer is on the LEFT side (9 o'clock)
+  // In D3 coordinate system (0 at 12 o'clock), 9 o'clock is 270 degrees.
+  const POINTER_ANGLE = 270;
 
   useImperativeHandle(ref, () => ({
     spin: (winnerOverride?: string | null) => {
@@ -179,116 +179,63 @@ const Wheel = forwardRef<WheelHandle, WheelProps>(({
   }, []);
 
   return (
-    <div className="relative flex justify-center items-center w-full max-w-[800px] mx-auto aspect-square p-4 animate-in fade-in zoom-in duration-700">
+    // Max width 800px
+    <div className="relative flex justify-center items-center w-full max-w-[800px] mx-auto aspect-square p-4">
 
-      {/* Top Pointer (12 o'clock) */}
-      <div
-        className="absolute top-0 left-1/2 -translate-x-1/2 z-20"
-        style={{ filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.5))' }}
-      >
-        <div
-          className="w-0 h-0"
-          style={{
-            borderLeft: '18px solid transparent',
-            borderRight: '18px solid transparent',
-            borderTop: `36px solid var(--indicator-color)`,
-          }}
-        />
+      {/* Indicator Arrow - Left Side (9 o'clock) pointing inward (Right) */}
+      <div className={`absolute left-0 top-1/2 -translate-y-1/2 z-20 translate-x-1 rotate-[-90deg]`}>
+         {/* Using a simple triangle shape via borders */}
+         <div className={`w-0 h-0 border-l-[20px] border-l-transparent border-r-[20px] border-r-transparent border-t-[40px] drop-shadow-xl ${currentTheme.indicator.replace('text-', 'border-t-')}`}></div>
       </div>
 
-      {/* Wheel Body with Glow */}
-      <div
-        className={`w-full h-full rounded-full border-[8px] ${currentTheme.wheelBorder} relative overflow-hidden transition-all duration-700`}
-        style={{
-          boxShadow: `0 0 60px ${currentTheme.glowColor}, inset 0 0 40px rgba(0,0,0,0.6)`,
-          background: '#0f172a',
-        }}
-      >
+      {/* Wheel Body */}
+      <div className={`w-full h-full rounded-full border-[10px] ${currentTheme.wheelBorder} shadow-[0_0_50px_rgba(0,0,0,0.5)] bg-slate-800 relative overflow-hidden transition-colors duration-500`}>
+
         {/* Rotating SVG */}
         <div
-          className="w-full h-full"
-          style={{
-            transform: `rotate(${rotation}deg)`,
-            willChange: 'transform',
-          }}
+            className="w-full h-full"
+            style={{
+              transform: `rotate(${rotation}deg)`,
+              willChange: 'transform'
+            }}
         >
           <svg viewBox={`0 0 ${size} ${size}`} className="w-full h-full">
-            <defs>
-              <filter id="text-shadow" x="-20%" y="-20%" width="140%" height="140%">
-                <feDropShadow dx="0" dy="1" stdDeviation="2" floodColor="rgba(0,0,0,0.8)" />
-              </filter>
-            </defs>
-            <g transform={`translate(${size / 2},${size / 2})`}>
-              {arcs.map((d, i) => {
-                const midAngle = (d.startAngle + d.endAngle) / 2;
-                const angleDeg = midAngle * 180 / Math.PI;
-                // Position text at 70% of outer radius for better readability
-                const textRadius = (radius - padding) * 0.68;
-                const tx = Math.cos(midAngle - Math.PI / 2) * textRadius;
-                const ty = Math.sin(midAngle - Math.PI / 2) * textRadius;
-                const fontSize = Math.max(12, Math.min(22, 38 - segments.length * 0.8));
-                const label = segments[i].text.length > 22
-                  ? segments[i].text.substring(0, 19) + '...'
-                  : segments[i].text;
-                return (
-                  <g key={segments[i].id}>
-                    <path
-                      d={arc(d) || undefined}
-                      fill={segments[i].color}
-                      stroke="#0f172a"
-                      strokeWidth="2"
-                    />
-                    <text
-                      x={tx}
-                      y={ty}
-                      textAnchor="middle"
-                      dominantBaseline="middle"
-                      fill={segments[i].textColor}
-                      fontSize={fontSize}
-                      fontWeight="bold"
-                      fontFamily="system-ui, -apple-system, sans-serif"
-                      filter="url(#text-shadow)"
-                      style={{
-                        textRendering: 'optimizeLegibility',
-                        userSelect: 'none',
-                      }}
-                    >
-                      {label}
-                    </text>
-                  </g>
-                );
-              })}
-            </g>
+             <g transform={`translate(${size/2},${size/2})`}>
+                {arcs.map((d, i) => {
+                   // Angle for text placement
+                   const angle = (d.startAngle + d.endAngle) / 2 * 180 / Math.PI;
+                   return (
+                    <g key={segments[i].id}>
+                      <path
+                        d={arc(d) || undefined}
+                        fill={segments[i].color}
+                        stroke="#0f172a"
+                        strokeWidth="2"
+                      />
+                      <text
+                        transform={`rotate(${angle + 90}) translate(-${radius - 20}, 0)`}
+                        textAnchor="start"
+                        dominantBaseline="middle"
+                        fill={segments[i].textColor}
+                        className="wheel-font"
+                        fontSize={Math.max(16, 40 - (segments.length * 0.5))}
+                        fontWeight="bold"
+                        style={{ textRendering: 'optimizeLegibility' }}
+                      >
+                        {segments[i].text.length > 25 ? segments[i].text.substring(0, 22) + '..' : segments[i].text}
+                      </text>
+                    </g>
+                  );
+                })}
+             </g>
           </svg>
         </div>
       </div>
 
-      {/* Center Cap */}
-      <div
-        className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[72px] h-[72px] md:w-[88px] md:h-[88px] rounded-full ${currentTheme.centerGradient} ${currentTheme.centerBorder} border-[3px] z-10 flex items-center justify-center shadow-[0_0_30px_rgba(0,0,0,0.5)]`}
-      >
-        <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 md:w-6 md:h-6 text-white drop-shadow-md">
-            <path fillRule="evenodd" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A11.959 11.959 0 013.22 14.25m0 0A8.959 8.959 0 013 12c0-.778.099-1.533.284-2.253m0 0A11.959 11.959 0 0112 3.75c2.998 0 5.74 1.1 7.843 2.918" clipRule="evenodd" />
-          </svg>
-        </div>
+      {/* Center Cap with Text - Reduced Size */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 md:w-20 md:h-20 rounded-full bg-white border-4 border-slate-200 shadow-xl z-10 flex items-center justify-center">
+         <span className="text-slate-800 font-black text-xs tracking-widest">SPIN</span>
       </div>
-
-      <style jsx>{`
-        .animate-in {
-          animation: wheelIn 0.7s ease-out both;
-        }
-        @keyframes wheelIn {
-          from {
-            opacity: 0;
-            transform: scale(0.85);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-      `}</style>
     </div>
   );
 });
