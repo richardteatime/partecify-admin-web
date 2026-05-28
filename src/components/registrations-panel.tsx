@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { adminService } from "@/services/admin-service";
-import { RegistrationItem } from "@/types/admin";
+import { RegistrationItem, WheelSettings } from "@/types/admin";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -68,6 +68,39 @@ export default function RegistrationsPanel() {
     }
   }
 
+  async function createWheel(item: RegistrationItem) {
+    const participants = item.users
+      .map((u) => String(u.name ?? ""))
+      .filter(Boolean);
+
+    if (participants.length === 0) {
+      toast.error("Nessun partecipante trovato in questa registrazione.");
+      return;
+    }
+
+    const settings: WheelSettings = {
+      theme: "party",
+      mode: "single",
+      forcedWinner: null,
+      soundEnabled: true,
+      sequenceSteps: [],
+    };
+
+    try {
+      const id = await adminService.createWheel({
+        title: `Ruota ${item.title}`,
+        location: item.location,
+        participants,
+        sourceRegistrationId: item.docId,
+        settings,
+      });
+      const url = `${window.location.origin}/wheel/${id}`;
+      toast.success(`Ruota creata! ${url}`);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Errore creazione ruota.");
+    }
+  }
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-start justify-between gap-4">
@@ -121,6 +154,12 @@ export default function RegistrationsPanel() {
                     </Button>
                     <Button onClick={() => exportCsv(item)}>
                       Esporta CSV
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => createWheel(item)}
+                    >
+                      Crea ruota
                     </Button>
                   </div>
                 </div>
