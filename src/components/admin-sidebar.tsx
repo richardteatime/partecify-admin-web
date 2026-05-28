@@ -82,7 +82,7 @@ export default function AdminSidebar() {
       <div className="px-4 py-6">
         <div className="flex items-center gap-3">
           <NextImage
-            src="/partecify-logo.png"
+            src="/logo-partecify.png"
             alt="Partecify"
             width={48}
             height={48}

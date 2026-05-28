@@ -103,7 +103,7 @@ export default function LoginPage() {
       <Card className="relative z-10 w-full max-w-md border border-border/50 bg-card shadow-2xl">
         <CardHeader className="items-center space-y-4 pb-6">
           <Image
-            src="/partecify-logo.png"
+            src="/logo-partecify.png"
             alt="Logo Partecify"
             width={200}
             height={200}
