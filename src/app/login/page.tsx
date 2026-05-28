@@ -106,9 +106,9 @@ export default function LoginPage() {
             <Image
               src="/partecify-logo.png"
               alt="Logo Partecify"
-              width={280}
-              height={58}
-              className="h-auto w-48 object-contain"
+              width={200}
+              height={200}
+              className="h-28 w-auto object-contain"
               priority
             />
           </div>

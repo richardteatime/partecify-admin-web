@@ -83,9 +83,9 @@ export default function AdminSidebar() {
         <NextImage
           src="/partecify-logo.png"
           alt="Partecify"
-          width={180}
-          height={38}
-          className="h-auto w-36 object-contain"
+          width={100}
+          height={100}
+          className="h-10 w-auto object-contain"
           priority
         />
         <p className="text-xs text-muted-foreground mt-2">
