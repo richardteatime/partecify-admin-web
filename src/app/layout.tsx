@@ -7,7 +7,7 @@ import { Toaster } from "@/components/ui/sonner";
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata = {
-  title: "Partecify Admin",
+  title: "Partecify",
   description: "Pannello amministrativo Partecify",
 };
 

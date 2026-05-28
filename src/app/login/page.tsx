@@ -106,16 +106,13 @@ export default function LoginPage() {
             <Image
               src="/partecify-logo.png"
               alt="Logo Partecify"
-              width={64}
-              height={64}
-              className="h-16 w-16 object-contain"
+              width={280}
+              height={58}
+              className="h-auto w-48 object-contain"
               priority
             />
           </div>
           <div className="space-y-1 text-center">
-            <CardTitle className="text-3xl font-bold tracking-tight">
-              Partecify Admin
-            </CardTitle>
             <CardDescription className="text-base">
               Accedi al pannello di gestione
             </CardDescription>

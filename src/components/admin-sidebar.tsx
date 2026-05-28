@@ -1,5 +1,6 @@
 "use client";
 
+import NextImage from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logout } from "@/services/auth-service";
@@ -79,8 +80,15 @@ export default function AdminSidebar() {
   const sidebarContent = (
     <div className="flex h-full flex-col">
       <div className="px-4 py-6">
-        <h1 className="text-xl font-bold tracking-tight">Partecify Admin</h1>
-        <p className="text-xs text-muted-foreground mt-1">
+        <NextImage
+          src="/partecify-logo.png"
+          alt="Partecify"
+          width={180}
+          height={38}
+          className="h-auto w-36 object-contain"
+          priority
+        />
+        <p className="text-xs text-muted-foreground mt-2">
           Pannello amministrativo
         </p>
       </div>
