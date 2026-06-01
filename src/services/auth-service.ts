@@ -28,7 +28,7 @@ export async function requireAdminUser(uid: string): Promise<UserModel> {
     throw new Error("Profilo utente non trovato.");
   }
 
-  if (!profile.isAdmin) {
+  if (!profile.isAdmin && profile.adminSedes.length === 0) {
     throw new Error("Accesso non autorizzato.");
   }
 

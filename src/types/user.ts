@@ -7,6 +7,7 @@ export type UserModel = {
   email: string;
   birthDate: string;
   isAdmin: boolean;
+  adminSedes: string[];
   gamePoints: number;
   qrValidated: string[];
 };
@@ -27,6 +28,9 @@ export function mapUser(data: Record<string, unknown>): UserModel {
     email: String(data.email ?? ""),
     birthDate: String(data.birthDate ?? ""),
     isAdmin: Boolean(data.isAdmin ?? false),
+    adminSedes: Array.isArray(data.adminSedes)
+      ? data.adminSedes.map(String)
+      : [],
     gamePoints: toInt(data.gamePoints),
     qrValidated: Array.isArray(data.qrValidated)
       ? data.qrValidated.map(String)

@@ -37,6 +37,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 
 const userSchema = z.object({
@@ -47,6 +48,7 @@ const userSchema = z.object({
   sede: z.string().min(1, "Seleziona una sede."),
   gamePoints: z.number().int().min(0, "I punti devono essere un numero intero positivo."),
   isAdmin: z.boolean(),
+  adminSedes: z.array(z.string()),
 });
 
 type UserFormData = z.infer<typeof userSchema>;
@@ -77,6 +79,7 @@ export default function UsersPanel() {
       sede: "",
       gamePoints: 0,
       isAdmin: false,
+      adminSedes: [],
     },
   });
 
@@ -120,6 +123,7 @@ export default function UsersPanel() {
       sede: user.sede || "",
       gamePoints: user.gamePoints ?? 0,
       isAdmin: user.isAdmin ?? false,
+      adminSedes: user.adminSedes ?? [],
     });
   }
 
@@ -140,6 +144,7 @@ export default function UsersPanel() {
         sede: data.sede,
         gamePoints: data.gamePoints,
         isAdmin: data.isAdmin,
+        adminSedes: data.isAdmin ? [] : data.adminSedes,
       });
       toast.success("Utente aggiornato con successo.");
       closeEdit();
@@ -229,9 +234,13 @@ export default function UsersPanel() {
                       <TableCell>{user.gamePoints}</TableCell>
                       <TableCell>
                         {user.isAdmin ? (
-                          <Badge variant="default">Sì</Badge>
+                          <Badge variant="default">Super Admin</Badge>
+                        ) : user.adminSedes.length > 0 ? (
+                          <Badge variant="secondary">
+                            Admin {user.adminSedes.join(", ")}
+                          </Badge>
                         ) : (
-                          <Badge variant="secondary">No</Badge>
+                          <Badge variant="outline">No</Badge>
                         )}
                       </TableCell>
                       <TableCell>{user.birthDate}</TableCell>
@@ -344,13 +353,56 @@ export default function UsersPanel() {
               </div>
             </div>
 
-            <label className="flex items-center gap-3 rounded-lg border px-4 py-3">
-              <input
-                type="checkbox"
-                {...register("isAdmin")}
-              />
-              <span className="text-sm font-medium">Amministratore</span>
-            </label>
+            <div className="space-y-3 rounded-lg border p-4">
+              <div className="flex items-center gap-3">
+                <Checkbox
+                  id="isAdmin"
+                  checked={watch("isAdmin")}
+                  onCheckedChange={(v) =>
+                    setValue("isAdmin", Boolean(v), { shouldValidate: true })
+                  }
+                />
+                <Label htmlFor="isAdmin" className="text-sm font-medium cursor-pointer">
+                  Super Admin (tutte le sedi)
+                </Label>
+              </div>
+
+              {!watch("isAdmin") && (
+                <div className="space-y-2 pt-2 border-t">
+                  <Label className="text-sm">Admin per sede</Label>
+                  {locations.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      Nessuna sede disponibile.
+                    </p>
+                  ) : (
+                    <div className="flex flex-wrap gap-3">
+                      {locations.map((loc) => {
+                        const isChecked = watch("adminSedes").includes(loc);
+                        return (
+                          <label
+                            key={loc}
+                            className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm cursor-pointer"
+                          >
+                            <Checkbox
+                              checked={isChecked}
+                              onCheckedChange={(checked) => {
+                                const current = watch("adminSedes");
+                                if (checked) {
+                                  setValue("adminSedes", [...current, loc], { shouldValidate: true });
+                                } else {
+                                  setValue("adminSedes", current.filter((s) => s !== loc), { shouldValidate: true });
+                                }
+                              }}
+                            />
+                            <span>{loc}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             <DialogFooter className="gap-2">
               <Button
