@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { adminService } from "@/services/admin-service";
 import { WheelItem, WheelSettings } from "@/types/admin";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -32,6 +33,64 @@ interface WheelSettingsDialogProps {
 }
 
 const themeOptions: WheelSettings["theme"][] = ["base", "neon", "gold", "party"];
+
+function SearchableParticipantSelect({
+  value,
+  onChange,
+  placeholder,
+  participants,
+  allowEmpty,
+  emptyLabel,
+}: {
+  value: string | null;
+  onChange: (v: string | null) => void;
+  placeholder?: string;
+  participants: string[];
+  allowEmpty?: boolean;
+  emptyLabel?: string;
+}) {
+  const [search, setSearch] = useState("");
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    const base = term
+      ? participants.filter((p) => p.toLowerCase().includes(term))
+      : participants;
+    if (value && !base.includes(value)) return [value, ...base];
+    return base;
+  }, [participants, search, value]);
+
+  return (
+    <div className="space-y-1">
+      <Input
+        placeholder="Cerca partecipante..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="text-sm h-8"
+      />
+      <Select
+        value={value ?? ""}
+        onValueChange={(v) => {
+          onChange(v || null);
+          setSearch("");
+        }}
+      >
+        <SelectTrigger>
+          <SelectValue placeholder={placeholder || "Seleziona..."} />
+        </SelectTrigger>
+        <SelectContent className="max-h-48 overflow-y-auto">
+          {allowEmpty && (
+            <SelectItem value="">{emptyLabel || "-- Nessuno --"}</SelectItem>
+          )}
+          {filtered.map((p) => (
+            <SelectItem key={p} value={p}>
+              {p}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
 
 export default function WheelSettingsDialog({
   wheel,
@@ -163,27 +222,18 @@ export default function WheelSettingsDialog({
               <Label className="flex items-center gap-2 text-red-400">
                 Vincitore forzato (rigging)
               </Label>
-              <Select
-                value={settings.forcedWinner ?? ""}
-                onValueChange={(v) =>
+              <SearchableParticipantSelect
+                value={settings.forcedWinner}
+                onChange={(v) =>
                   setSettings((prev) => ({
                     ...prev,
-                    forcedWinner: v || null,
+                    forcedWinner: v,
                   }))
                 }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="-- Casuale (fair play) --" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">-- Casuale (fair play) --</SelectItem>
-                  {participants.map((p) => (
-                    <SelectItem key={p} value={p}>
-                      {p}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                participants={participants}
+                allowEmpty
+                emptyLabel="-- Casuale (fair play) --"
+              />
             </div>
           )}
 
@@ -239,23 +289,16 @@ export default function WheelSettingsDialog({
                       </SelectContent>
                     </Select>
                     {step.type === "fixed" ? (
-                      <Select
-                        value={step.winnerName ?? ""}
-                        onValueChange={(v) =>
-                          updateSequenceStep(idx, "winnerName", v || null)
-                        }
-                      >
-                        <SelectTrigger className="flex-1">
-                          <SelectValue placeholder="Seleziona..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {participants.map((p) => (
-                            <SelectItem key={p} value={p}>
-                              {p}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <div className="flex-1">
+                        <SearchableParticipantSelect
+                          value={step.winnerName}
+                          onChange={(v) =>
+                            updateSequenceStep(idx, "winnerName", v)
+                          }
+                          participants={participants}
+                          placeholder="Seleziona..."
+                        />
+                      </div>
                     ) : (
                       <span className="flex-1 text-xs text-muted-foreground italic px-2">
                         Risultato casuale

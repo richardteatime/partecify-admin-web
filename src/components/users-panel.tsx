@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useAuth } from "@/hooks/use-auth";
+import { getVisibleSedes } from "@/lib/admin-helpers";
 import { adminService } from "@/services/admin-service";
 import { UserModel } from "@/types/user";
 
@@ -54,6 +56,9 @@ const userSchema = z.object({
 type UserFormData = z.infer<typeof userSchema>;
 
 export default function UsersPanel() {
+  const { profile } = useAuth();
+  const visibleSedes = getVisibleSedes(profile);
+
   const [users, setUsers] = useState<UserModel[]>([]);
   const [locations, setLocations] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,7 +95,10 @@ export default function UsersPanel() {
         adminService.fetchUsers(sedeFilter || undefined),
         adminService.fetchLocations(),
       ]);
-      setUsers(u);
+      const filteredUsers = visibleSedes
+        ? u.filter((user) => visibleSedes.includes(user.sede))
+        : u;
+      setUsers(filteredUsers);
       setLocations(locs);
     } catch {
       toast.error("Errore durante il caricamento degli utenti.");
@@ -173,7 +181,10 @@ export default function UsersPanel() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">Tutte le sedi</SelectItem>
-                {locations.map((loc) => (
+                {(visibleSedes
+                  ? locations.filter((loc) => visibleSedes.includes(loc))
+                  : locations
+                ).map((loc) => (
                   <SelectItem key={loc} value={loc}>
                     {loc}
                   </SelectItem>
@@ -259,7 +270,7 @@ export default function UsersPanel() {
       </Card>
 
       <Dialog open={!!editingUser} onOpenChange={(open) => !open && closeEdit()}>
-        <DialogContent className="max-w-xl w-full">
+        <DialogContent className="max-w-xl w-full max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Modifica utente</DialogTitle>
             <DialogDescription>
@@ -328,7 +339,10 @@ export default function UsersPanel() {
                     <SelectValue placeholder="Seleziona" />
                   </SelectTrigger>
                   <SelectContent>
-                    {locations.map((loc) => (
+                    {(visibleSedes
+                      ? locations.filter((loc) => visibleSedes.includes(loc))
+                      : locations
+                    ).map((loc) => (
                       <SelectItem key={loc} value={loc}>
                         {loc}
                       </SelectItem>
@@ -375,8 +389,11 @@ export default function UsersPanel() {
                       Nessuna sede disponibile.
                     </p>
                   ) : (
-                    <div className="flex flex-wrap gap-3">
-                      {locations.map((loc) => {
+                    <div className="flex flex-wrap gap-3 max-h-40 overflow-y-auto pr-1">
+                      {(visibleSedes
+                        ? locations.filter((loc) => visibleSedes.includes(loc))
+                        : locations
+                      ).map((loc) => {
                         const isChecked = watch("adminSedes").includes(loc);
                         return (
                           <label

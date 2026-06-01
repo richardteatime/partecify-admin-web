@@ -5,8 +5,10 @@ import QRCode from "qrcode";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useAuth } from "@/hooks/use-auth";
+import { getVisibleSedes } from "@/lib/admin-helpers";
 import { adminService } from "@/services/admin-service";
-import { buildQrString, decodeQrMeta } from "@/lib/qr";
+import { buildQrString, decodeQrMeta, getQrLocationSlug, locationToSlug } from "@/lib/qr";
 import {
   Card,
   CardHeader,
@@ -98,6 +100,9 @@ function QrCard({ raw }: { raw: string }) {
 }
 
 export default function QrPanel() {
+  const { profile } = useAuth();
+  const visibleSedes = getVisibleSedes(profile);
+
   const [locations, setLocations] = useState<string[]>([]);
   const [qrCodes, setQrCodes] = useState<string[]>([]);
   const [creating, setCreating] = useState(false);
@@ -186,7 +191,10 @@ export default function QrPanel() {
                       <SelectValue placeholder="Seleziona una sede" />
                     </SelectTrigger>
                     <SelectContent>
-                      {locations.map((loc) => (
+                      {(visibleSedes
+                      ? locations.filter((loc) => visibleSedes.includes(loc))
+                      : locations
+                    ).map((loc) => (
                         <SelectItem key={loc} value={loc}>
                           {loc}
                         </SelectItem>
@@ -238,9 +246,17 @@ export default function QrPanel() {
             </p>
           ) : (
             <div className="space-y-3">
-              {qrCodes.map((raw) => (
-                <QrCard key={raw} raw={raw} />
-              ))}
+              {qrCodes
+                .filter((raw) => {
+                  if (!visibleSedes) return true;
+                  const qrSlug = getQrLocationSlug(raw);
+                  return visibleSedes.some(
+                    (sede) => locationToSlug(sede) === qrSlug
+                  );
+                })
+                .map((raw) => (
+                  <QrCard key={raw} raw={raw} />
+                ))}
             </div>
           )}
         </CardContent>

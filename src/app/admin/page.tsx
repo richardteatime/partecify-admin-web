@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/use-auth";
+import { getVisibleSedes } from "@/lib/admin-helpers";
 import { adminService } from "@/services/admin-service";
 import { AdminStats, RegistrationItem, TimedNewsItem, WheelItem } from "@/types/admin";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +21,9 @@ import { Users, Calendar, CircleDot, ClipboardList } from "lucide-react";
 export const dynamic = "force-dynamic";
 
 export default function AdminDashboardPage() {
+  const { profile } = useAuth();
+  const visibleSedes = getVisibleSedes(profile);
+
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [wheels, setWheels] = useState<WheelItem[]>([]);
   const [timedNews, setTimedNews] = useState<TimedNewsItem[]>([]);
@@ -26,20 +31,65 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
     Promise.all([
       adminService.fetchStats(),
+      adminService.fetchUsers(),
       adminService.fetchWheels(),
       adminService.loadDeletableTimedNews(),
       adminService.loadRegistrations(),
     ])
-      .then(([statsData, wheelsData, timedNewsData, regsData]) => {
-        setStats(statsData);
-        setWheels(wheelsData.slice(0, 5));
-        setTimedNews(timedNewsData.slice(-5).reverse());
-        setRegistrations(regsData.filter((r) => r.isTimed).slice(0, 5));
+      .then(([statsData, usersData, wheelsData, timedNewsData, regsData]) => {
+        const filteredUsers = visibleSedes
+          ? usersData.filter((u) => visibleSedes.includes(u.sede))
+          : usersData;
+
+        const usersBySede: Record<string, number> = {};
+        let totalGamePoints = 0;
+        for (const u of filteredUsers) {
+          usersBySede[u.sede] = (usersBySede[u.sede] || 0) + 1;
+          totalGamePoints += u.gamePoints;
+        }
+
+        setStats({
+          totalUsers: filteredUsers.length,
+          usersBySede,
+          totalGamePoints,
+          avgGamePoints: filteredUsers.length
+            ? Math.round(totalGamePoints / filteredUsers.length)
+            : 0,
+          totalNews: statsData.totalNews,
+          totalEvents: statsData.totalEvents,
+          totalTimedNews: visibleSedes
+            ? timedNewsData.filter((t) => visibleSedes.includes(t.location)).length
+            : statsData.totalTimedNews,
+          totalRegistrations: visibleSedes
+            ? regsData.filter((r) => visibleSedes.includes(r.location)).length
+            : statsData.totalRegistrations,
+        });
+
+        setWheels(
+          wheelsData
+            .filter((w) => !visibleSedes || visibleSedes.includes(w.location))
+            .slice(0, 5)
+        );
+        setTimedNews(
+          timedNewsData
+            .filter((t) => !visibleSedes || visibleSedes.includes(t.location))
+            .slice(-5)
+            .reverse()
+        );
+        setRegistrations(
+          regsData
+            .filter(
+              (r) =>
+                (!visibleSedes || visibleSedes.includes(r.location)) && r.isTimed
+            )
+            .slice(0, 5)
+        );
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [profile?.uid]);
 
   const chartData = stats
     ? Object.entries(stats.usersBySede)

@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useAuth } from "@/hooks/use-auth";
+import { getVisibleSedes } from "@/lib/admin-helpers";
 import { adminService } from "@/services/admin-service";
 import { NotificationTarget, StorageImageEntry } from "@/types/admin";
 import NotificationTargetSelector from "@/components/notification-target-selector";
@@ -102,6 +104,9 @@ function getDefaultValues(type: ContentType): FormData {
 }
 
 export default function ContentForm() {
+  const { profile } = useAuth();
+  const visibleSedes = getVisibleSedes(profile);
+
   const [selectedType, setSelectedType] = useState<ContentType>("news");
   const [locations, setLocations] = useState<string[]>([]);
   const [images, setImages] = useState<StorageImageEntry[]>([]);
@@ -363,7 +368,10 @@ export default function ContentForm() {
             <SelectValue placeholder="Seleziona una sede" />
           </SelectTrigger>
           <SelectContent>
-            {locations.map((loc) => (
+            {(visibleSedes
+              ? locations.filter((loc) => visibleSedes.includes(loc))
+              : locations
+            ).map((loc) => (
               <SelectItem key={loc} value={loc}>
                 {loc}
               </SelectItem>

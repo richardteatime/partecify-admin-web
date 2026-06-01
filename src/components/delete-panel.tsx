@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/use-auth";
+import { getVisibleSedes } from "@/lib/admin-helpers";
 import { adminService } from "@/services/admin-service";
 import { EventItem, NewsItem, TimedNewsItem } from "@/types/admin";
 import {
@@ -34,6 +36,10 @@ import { toast } from "sonner";
 type DeleteType = "news" | "event" | "timedNews";
 
 export default function DeletePanel() {
+  const { profile } = useAuth();
+  const visibleSedes = getVisibleSedes(profile);
+  const canManageGlobal = profile?.isAdmin ?? false;
+
   const [type, setType] = useState<DeleteType>("news");
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<Array<NewsItem | EventItem | TimedNewsItem>>([]);
@@ -43,9 +49,29 @@ export default function DeletePanel() {
     setLoading(true);
 
     try {
-      if (type === "news") setItems(await adminService.loadDeletableNews());
-      if (type === "event") setItems(await adminService.loadDeletableEvents());
-      if (type === "timedNews") setItems(await adminService.loadDeletableTimedNews());
+      if (type === "news") {
+        if (!canManageGlobal) {
+          setItems([]);
+        } else {
+          setItems(await adminService.loadDeletableNews());
+        }
+      }
+      if (type === "event") {
+        const data = await adminService.loadDeletableEvents();
+        setItems(
+          visibleSedes
+            ? data.filter((i) => visibleSedes.includes((i as EventItem).location))
+            : data
+        );
+      }
+      if (type === "timedNews") {
+        const data = await adminService.loadDeletableTimedNews();
+        setItems(
+          visibleSedes
+            ? data.filter((i) => visibleSedes.includes((i as TimedNewsItem).location))
+            : data
+        );
+      }
     } catch {
       toast.error("Errore durante il caricamento degli elementi.");
     } finally {

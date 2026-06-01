@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/use-auth";
+import { getVisibleSedes } from "@/lib/admin-helpers";
 import { adminService } from "@/services/admin-service";
 import { RegistrationItem, WheelSettings } from "@/types/admin";
 
@@ -33,6 +35,9 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
 export default function RegistrationsPanel() {
+  const { profile } = useAuth();
+  const visibleSedes = getVisibleSedes(profile);
+
   const [items, setItems] = useState<RegistrationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewingItem, setViewingItem] = useState<RegistrationItem | null>(null);
@@ -42,7 +47,10 @@ export default function RegistrationsPanel() {
 
     try {
       const data = await adminService.loadRegistrations();
-      setItems(data);
+      const filtered = visibleSedes
+        ? data.filter((item) => visibleSedes.includes(item.location))
+        : data;
+      setItems(filtered);
     } catch {
       toast.error("Errore durante il caricamento delle registrazioni.");
     } finally {

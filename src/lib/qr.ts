@@ -27,6 +27,16 @@ export function isQrForDate(raw: string, date: Date): boolean {
   return parts[1] === dateKey(date);
 }
 
+export function getQrLocationSlug(raw: string): string | null {
+  const parts = raw.split("|");
+  if (parts.length < 4 || parts[0] !== "PTC") return null;
+  return parts[2];
+}
+
+export function locationToSlug(loc: string): string {
+  return loc.toUpperCase().replaceAll(" ", "_").replaceAll("|", "_");
+}
+
 export function decodeQrMeta(raw: string) {
   const parts = raw.split("|");
   if (parts.length < 4) {

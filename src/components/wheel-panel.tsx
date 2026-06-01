@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useAuth } from "@/hooks/use-auth";
+import { getVisibleSedes } from "@/lib/admin-helpers";
 import { adminService } from "@/services/admin-service";
 import { RegistrationItem, WheelItem, WheelSettings, WheelSpin } from "@/types/admin";
 import WheelSettingsDialog from "@/components/wheel-settings-dialog";
@@ -56,6 +58,9 @@ const wheelSchema = z.object({
 type WheelFormData = z.infer<typeof wheelSchema>;
 
 export default function WheelPanel() {
+  const { profile } = useAuth();
+  const visibleSedes = getVisibleSedes(profile);
+
   const [registrations, setRegistrations] = useState<RegistrationItem[]>([]);
   const [wheels, setWheels] = useState<WheelItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,8 +111,13 @@ export default function WheelPanel() {
         adminService.loadRegistrations(),
         adminService.fetchWheels(),
       ]);
-      setRegistrations(regs.filter((r) => r.isTimed && r.userCount > 0));
-      setWheels(wls);
+      const filteredRegs = visibleSedes
+        ? regs.filter((r) => visibleSedes.includes(r.location))
+        : regs;
+      setRegistrations(filteredRegs.filter((r) => r.isTimed && r.userCount > 0));
+      setWheels(
+        visibleSedes ? wls.filter((w) => visibleSedes.includes(w.location)) : wls
+      );
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Errore caricamento dati.");
     } finally {

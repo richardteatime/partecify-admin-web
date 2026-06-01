@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useAuth } from "@/hooks/use-auth";
+import { getVisibleSedes } from "@/lib/admin-helpers";
 import { adminService } from "@/services/admin-service";
 import { PosterItem } from "@/types/admin";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
@@ -49,6 +51,9 @@ const posterSchema = z.object({
 type PosterFormData = z.infer<typeof posterSchema>;
 
 export default function PostersPanel() {
+  const { profile } = useAuth();
+  const visibleSedes = getVisibleSedes(profile);
+
   const [locations, setLocations] = useState<string[]>([]);
   const [assets, setAssets] = useState<
     Array<{ file: File; category: string; description: string }>
@@ -336,7 +341,10 @@ export default function PostersPanel() {
                         <SelectValue placeholder="Seleziona una sede" />
                       </SelectTrigger>
                       <SelectContent>
-                        {locations.map((loc) => (
+                        {(visibleSedes
+                        ? locations.filter((loc) => visibleSedes.includes(loc))
+                        : locations
+                      ).map((loc) => (
                           <SelectItem key={loc} value={loc}>
                             {loc}
                           </SelectItem>
@@ -475,7 +483,10 @@ export default function PostersPanel() {
                 </p>
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {posters.map((p) => (
+                  {(visibleSedes
+                    ? posters.filter((p) => visibleSedes.includes(p.location))
+                    : posters
+                  ).map((p) => (
                     <Card key={p.id} className="overflow-hidden">
                       {p.imageUrl ? (
                         <img
