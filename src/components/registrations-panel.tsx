@@ -60,7 +60,7 @@ export default function RegistrationsPanel() {
 
   useEffect(() => {
     load();
-  }, []);
+  }, [profile?.uid]);
 
   async function exportCsv(item: RegistrationItem) {
     try {

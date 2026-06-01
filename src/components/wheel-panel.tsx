@@ -101,8 +101,11 @@ export default function WheelPanel() {
 
   useEffect(() => {
     setOrigin(window.location.origin);
-    loadData();
   }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [profile?.uid]);
 
   async function loadData() {
     setLoading(true);

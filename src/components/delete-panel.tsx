@@ -81,7 +81,7 @@ export default function DeletePanel() {
 
   useEffect(() => {
     loadItems();
-  }, [type]);
+  }, [type, profile?.uid]);
 
   async function confirmDelete() {
     if (itemToDelete === null) return;

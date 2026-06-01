@@ -109,7 +109,7 @@ export default function UsersPanel() {
 
   useEffect(() => {
     load();
-  }, [sedeFilter]);
+  }, [sedeFilter, profile?.uid]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
