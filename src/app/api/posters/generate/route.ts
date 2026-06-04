@@ -142,6 +142,18 @@ export type PosterAsset = {
   category: string;
 };
 
+const ITALIAN_MONTHS = [
+  "gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno",
+  "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre",
+];
+
+function formatItalianDate(isoDate?: string): string | undefined {
+  if (!isoDate) return undefined;
+  const [year, month, day] = isoDate.split("-").map(Number);
+  if (!year || !month || !day) return isoDate;
+  return `${day} ${ITALIAN_MONTHS[month - 1]} ${year}`;
+}
+
 function buildPrompt(params: {
   titolo: string;
   sottotitolo?: string;
@@ -156,7 +168,8 @@ function buildPrompt(params: {
     ? `\nSECONDARY TEXT (smaller, below the title, coordinated with the title but using a visibly distinct color/font treatment):\n"${params.sottotitolo}"`
     : "";
 
-  const datetimeParts = [params.dataEvento, params.oraEvento].filter(Boolean);
+  const formattedDate = formatItalianDate(params.dataEvento);
+  const datetimeParts = [formattedDate, params.oraEvento].filter(Boolean);
   const datetimeBlock = datetimeParts.length
     ? `\nDATE/TIME TEXT (clearly readable, integrated into the design):\n"${datetimeParts.join(" — ")}"`
     : "";
